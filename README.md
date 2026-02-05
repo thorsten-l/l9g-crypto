@@ -26,7 +26,7 @@ To use this library in another Maven project, add the following dependency to yo
 <dependency>
   <groupId>de.l9g</groupId>
   <artifactId>l9g-crypto-core</artifactId>
-  <version>1.0.1-SNAPSHOT</version> <!-- Use the appropriate version -->
+  <version>1.0.1</version> <!-- Use the appropriate version -->
 </dependency>
 ```
 
@@ -72,7 +72,7 @@ To use this library in a Spring Boot Maven project, add the following dependency
 <dependency>
   <groupId>de.l9g</groupId>
   <artifactId>l9g-crypto-spring</artifactId>
-  <version>1.0.1-SNAPSHOT</version> <!-- Use the appropriate version -->
+  <version>1.0.1</version> <!-- Use the appropriate version -->
 </dependency>
 ```
 The `EncryptedPropertiesEnvironmentPostProcessor` is automatically registered via `META-INF/spring.factories` and will process encrypted properties during application startup.
@@ -101,7 +101,7 @@ To use this library in another Maven project that uses JPA, add the following de
 <dependency>
   <groupId>de.l9g</groupId>
   <artifactId>l9g-crypto-jpa</artifactId>
-  <version>1.0.1-SNAPSHOT</version> <!-- Use the appropriate version -->
+  <version>1.0.1</version> <!-- Use the appropriate version -->
 </dependency>
 ```
 

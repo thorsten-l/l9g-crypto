@@ -6,6 +6,7 @@
     <groupId>de.l9g</groupId>
     <artifactId>crypto-parent</artifactId>
     <version>1.0.1-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
   </parent>
 
   <artifactId>crypto-spring</artifactId>

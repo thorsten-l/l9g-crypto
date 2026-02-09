@@ -175,7 +175,7 @@ For interactive mode:
 *   `version`: Displays the application version.
 *   `encrypt --text <your_text>`: Encrypts the provided clear text.
 *   `decrypt --encrypted <encrypted_text>`: Decrypts the provided encrypted text.
-*   `pwgen --length <number>`: Generates a random password of specified length and encrypts it.
+*   `pwgen --length <number>`: Generates a random password of specified length (default length = 16 characters) and encrypts it.
 
 #### Development Conventions
 *   **Language:** Java 17

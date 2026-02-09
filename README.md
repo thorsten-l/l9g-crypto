@@ -134,6 +134,56 @@ public class User {
 *   **Libraries:** Project Lombok (inherited), Jakarta Persistence API
 *   **Dependencies:** `l9g-crypto-core`
 
+### 4. `l9g-crypto-tool`
+
+#### Project Overview
+This module, `l9g-crypto-tool`, is a command-line interface (CLI) application built with Spring Shell. It provides utilities for encrypting and decrypting strings using the `l9g-crypto-core` library, and for generating random passwords. It acts as a convenient standalone tool for interacting with the core crypto functionalities.
+
+#### Building
+To build only this module, navigate to its directory (`l9g-crypto-tool`) and execute:
+```bash
+mvn clean install
+```
+
+#### Running/Integrating
+The `l9g-crypto-tool` can be run directly as an executable JAR or compiled into a native image using GraalVM.
+
+**Running as JAR:**
+```bash
+java -jar l9g-crypto-tool.jar [commands]
+```
+For interactive mode:
+```bash
+java -jar l9g-crypto-tool.jar -i
+```
+
+**Running native image:**
+First, compile the native image (requires GraalVM and `native-image` tool installed):
+```bash
+./NATIVE_COMPILE.sh
+```
+Then run the executable:
+```bash
+./l9g-crypto-tool [commands]
+```
+For interactive mode:
+```bash
+./l9g-crypto-tool -i
+```
+
+**Available Commands (e.g., in interactive mode or directly):**
+*   `version`: Displays the application version.
+*   `encrypt --text <your_text>`: Encrypts the provided clear text.
+*   `decrypt --encrypted <encrypted_text>`: Decrypts the provided encrypted text.
+*   `pwgen --length <number>`: Generates a random password of specified length and encrypts it.
+
+#### Development Conventions
+*   **Language:** Java 17
+*   **Build Tool:** Maven
+*   **Libraries:** Project Lombok, Spring Boot, Spring Shell
+*   **Dependencies:** `l9g-crypto-core`
+*   **Native Compilation:** GraalVM `native-image`
+
 ## Building the Entire Project
 
 To build all modules from the root directory of the `l9g-crypto` project, execute the following Maven command:

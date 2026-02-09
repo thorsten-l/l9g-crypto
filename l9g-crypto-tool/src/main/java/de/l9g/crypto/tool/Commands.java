@@ -25,6 +25,9 @@ import org.springframework.shell.command.annotation.Command;
 import org.springframework.shell.command.annotation.Option;
 
 /**
+ * This class defines the available commands for the L9G Crypto Tool.
+ * It provides functionalities for showing the application version,
+ * encrypting and decrypting text, and generating random passwords.
  *
  * @author Thorsten Ludewig (t.ludewig@gmail.com)
  */
@@ -37,12 +40,23 @@ public class Commands
 
   private final BuildProperties buildProperties;
 
+  /**
+   * Displays the application version.
+   *
+   * @return A string containing the artifact ID and version of the application.
+   */
   @Command(description = "Show application version")
   public String version()
   {
     return buildProperties.getArtifact() + "/" +  buildProperties.getVersion();
   }
 
+  /**
+   * Encrypts the provided clear text. The encrypted text is prefixed with "{AES256}".
+   *
+   * @param text The clear text to be encrypted.
+   * @throws Throwable if an error occurs during encryption.
+   */
   @Command(description = "encrypt clear text for passwords")
   public void encrypt(
     @Option(description = "clear text", required = true) String text)
@@ -52,6 +66,12 @@ public class Commands
     System.out.println("encrypted text = \"" + cryptoHandler.encrypt(text) + "\"");
   }
 
+  /**
+   * Decrypts the provided encrypted text. The encrypted text is expected to be prefixed with "{AES256}".
+   *
+   * @param encrypted The encrypted text to be decrypted.
+   * @throws Throwable if an error occurs during decryption.
+   */
   @Command(description = "decrypt encrypted text")
   public void decrypt(
     @Option(description = "encrypted text", required = true) String encrypted)
@@ -62,6 +82,12 @@ public class Commands
       + cryptoHandler.decrypt(encrypted) + "\"");
   }
 
+  /**
+   * Generates a random password of a specified length and then encrypts it.
+   *
+   * @param length The number of characters for the generated password.
+   * @throws Throwable if an error occurs during password generation or encryption.
+   */
   @Command(alias = "pwgen", description = "create random passwords")
   public void passwordGenerator(
     @Option(description = "number of chars", required = true, defaultValue = "16") int length)

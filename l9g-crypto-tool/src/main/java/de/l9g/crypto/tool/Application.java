@@ -24,6 +24,10 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
+ * This class is the main entry point for the L9G Crypto Tool application.
+ * It is a Spring Boot application that provides command-line utilities
+ * for encryption, decryption, and password generation.
+ * It supports both interactive and non-interactive modes.
  *
  * @author Thorsten Ludewig (t.ludewig@gmail.com)
  */
@@ -31,20 +35,24 @@ import java.util.List;
 @CommandScan
 public class Application
 {
+  private final static String PARAMETER_I = "-i";
+
+  private final static String PARAMETER_INTERACTIVE = "--interactive";
+
   public static void main(String[] args)
   {
     List<String> argsList = new ArrayList<>(Arrays.asList(args));
     boolean interactiveModeRequested = false;
 
-    if(argsList.contains("-i"))
+    if(argsList.contains(PARAMETER_I))
     {
       interactiveModeRequested = true;
-      argsList.remove("-i");
+      argsList.remove(PARAMETER_I);
     }
-    if(argsList.contains("--interactive"))
+    if(argsList.contains(PARAMETER_INTERACTIVE))
     {
       interactiveModeRequested = true;
-      argsList.remove("--interactive");
+      argsList.remove(PARAMETER_INTERACTIVE);
     }
 
     SpringApplicationBuilder builder = new SpringApplicationBuilder(Application.class);

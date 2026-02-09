@@ -4,9 +4,11 @@ target/
 config.yaml
 server.p12
 nb-configuration.xml
+nbactions.xml
 GEMINI.md
 secrets
 secret.bin
+l9g-crypto-tool/data/
 .vscode/
 .idea/
 *.log

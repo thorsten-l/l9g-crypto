@@ -65,6 +65,7 @@
     <module>l9g-crypto-core</module>
     <module>l9g-crypto-spring</module>
     <module>l9g-crypto-jpa</module>
+    <module>l9g-crypto-tool</module>
   </modules>
 
   <dependencyManagement>

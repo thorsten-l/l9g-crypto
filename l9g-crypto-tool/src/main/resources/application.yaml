@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: l9g-crypto-tool
+  profiles:
+    active: default
+  config:
+    import: optional:file:data/config.yaml
+  messages:
+    basename: messages
+    encoding: UTF-8
+
+  main:
+    banner-mode: OFF
+    web-application-type: NONE
+
+  shell:
+    interactive:
+      enabled: true
+    command:
+      version:
+        enabled: true
+    history:
+      enabled: false
+    help:
+      enabled: true
+      long-names: help
+      short-names: h
+      command: help
+
+  output:
+    ansi:
+      enabled: ALWAYS
+
+logging:
+  pattern:
+    console: "%date{yyyy-MM-dd HH:mm:ss} %magenta([%thread]) %highlight(%-5level) %logger:%line - %yellow(%msg %n)"
+  level:
+    root: OFF
+    l9g: INFO

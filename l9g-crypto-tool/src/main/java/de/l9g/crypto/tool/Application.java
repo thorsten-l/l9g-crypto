@@ -39,6 +39,8 @@ public class Application
 
   private final static String PARAMETER_INTERACTIVE = "--interactive";
 
+  private final static String HELP = "help";
+
   public static void main(String[] args)
   {
     List<String> argsList = new ArrayList<>(Arrays.asList(args));
@@ -63,7 +65,7 @@ public class Application
     }
     else if(argsList.isEmpty())
     {
-      builder.run("help");
+      builder.run(HELP);
     }
     else
     {

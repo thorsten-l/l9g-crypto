@@ -17,8 +17,9 @@ package de.l9g.crypto.spring;
 
 import de.l9g.crypto.core.CryptoHandler;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Set;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.EnvironmentPostProcessor;
 import org.springframework.core.env.ConfigurableEnvironment;
@@ -26,7 +27,6 @@ import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.PropertySource;
 
-@Slf4j
 public class EncryptedPropertiesEnvironmentPostProcessor implements
   EnvironmentPostProcessor
 {
@@ -36,8 +36,9 @@ public class EncryptedPropertiesEnvironmentPostProcessor implements
   @Override
   public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application)
   {
-    log.debug("postProcessEnvironment");
+    //System.out.println("\npostProcessEnvironment");
     Map<String, Object> decryptedProperties = new HashMap<>();
+    Set<String> keys = new HashSet<>();
 
     for(PropertySource<?> propertySource : environment.getPropertySources())
     {
@@ -45,16 +46,27 @@ public class EncryptedPropertiesEnvironmentPostProcessor implements
       {
         for(String key : ((EnumerablePropertySource<?>)propertySource).getPropertyNames())
         {
-          Object value = propertySource.getProperty(key);
-          if(value instanceof String)
+          if( ! keys.contains(key))
           {
-            String stringValue = (String)value;
-            if(stringValue.startsWith(CryptoHandler.AES256_PREFIX))
+            //System.out.println(" ✅ key=" + key + ", value=" + propertySource.getProperty(key));
+            keys.add(key);
+            Object value = propertySource.getProperty(key);
+            if(value instanceof String)
             {
-              String decryptedValue = cryptoHandler.decrypt(stringValue);
-              decryptedProperties.put(key, decryptedValue);
+              String stringValue = (String)value;
+              if(stringValue.startsWith(CryptoHandler.AES256_PREFIX))
+              {
+                String decryptedValue = cryptoHandler.decrypt(stringValue);
+                decryptedProperties.put(key, decryptedValue);
+
+                //System.out.println(" 🔐 key=" + key + ", value=" + decryptedValue);
+              }
             }
           }
+          //else
+          //{
+          //  System.out.println(" 🚫 key=" + key + ", value=" + propertySource.getProperty(key));
+          //}
         }
       }
     }

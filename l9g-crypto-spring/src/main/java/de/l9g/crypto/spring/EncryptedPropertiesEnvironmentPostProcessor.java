@@ -36,7 +36,6 @@ public class EncryptedPropertiesEnvironmentPostProcessor implements
   @Override
   public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application)
   {
-    //System.out.println("\npostProcessEnvironment");
     Map<String, Object> decryptedProperties = new HashMap<>();
     Set<String> keys = new HashSet<>();
 
@@ -48,7 +47,6 @@ public class EncryptedPropertiesEnvironmentPostProcessor implements
         {
           if( ! keys.contains(key))
           {
-            //System.out.println(" ✅ key=" + key + ", value=" + propertySource.getProperty(key));
             keys.add(key);
             Object value = propertySource.getProperty(key);
             if(value instanceof String)
@@ -58,15 +56,9 @@ public class EncryptedPropertiesEnvironmentPostProcessor implements
               {
                 String decryptedValue = cryptoHandler.decrypt(stringValue);
                 decryptedProperties.put(key, decryptedValue);
-
-                //System.out.println(" 🔐 key=" + key + ", value=" + decryptedValue);
               }
             }
           }
-          //else
-          //{
-          //  System.out.println(" 🚫 key=" + key + ", value=" + propertySource.getProperty(key));
-          //}
         }
       }
     }

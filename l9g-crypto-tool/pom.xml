@@ -5,7 +5,7 @@
   <parent>
     <groupId>de.l9g</groupId>
     <artifactId>crypto-parent</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.2</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -18,6 +18,7 @@
     <spring-shell.version>3.4.1</spring-shell.version>
     <build.profile>default</build.profile>
     <exec.inheritIo>true</exec.inheritIo>
+    <maven.deploy.skip>true</maven.deploy.skip>
     <main.class>de.l9g.crypto.tool.Application</main.class>
   </properties>
 
@@ -93,7 +94,7 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
-        <version>3.5.9</version>
+        <version>${spring.boot.version}</version>
         <executions>
           <execution>
             <goals>
@@ -118,6 +119,28 @@
           </excludes>
         </configuration>
       </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <version>3.1.4</version>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.sonatype.central</groupId>
+        <artifactId>central-publishing-maven-plugin</artifactId>
+        <version>0.10.0</version>
+        <configuration>
+          <publish>false</publish>
+          <excludeArtifacts>
+            <artifact>crypto-tool</artifact>
+          </excludeArtifacts>
+        </configuration>
+      </plugin>
+      
     </plugins>
   </build>
 

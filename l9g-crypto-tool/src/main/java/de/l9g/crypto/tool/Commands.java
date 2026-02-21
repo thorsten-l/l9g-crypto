@@ -19,7 +19,6 @@ import de.l9g.crypto.core.CryptoHandler;
 import de.l9g.crypto.core.PasswordGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.shell.command.annotation.Command;
 import org.springframework.shell.command.annotation.Option;

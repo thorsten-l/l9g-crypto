@@ -47,7 +47,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping(path = "/api/v1/admin/vault", produces = MediaType.APPLICATION_JSON_VALUE)
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
-public class VaultController
+public class VaultApiController
 {
   private final VaultService vaultService;
 
@@ -73,7 +73,6 @@ public class VaultController
     return ResponseEntity.ok("OK");
   }
 
-
   @GetMapping("/challenge-data")
   public List<VaultAdminKey> getChallengeData(@AuthenticationPrincipal OidcUser oidcUser)
     throws Exception
@@ -89,7 +88,6 @@ public class VaultController
     return adminKeys;
   }
 
-  
   @PostMapping("/unseal")
   public void unsealServer(@RequestBody VaultUnsealRequest request,
     @AuthenticationPrincipal OidcUser oidcUser)
@@ -97,7 +95,7 @@ public class VaultController
   {
     // WICHTIG: Wir suchen exakt den Config-Eintrag heraus, dessen Credential-ID 
     // der YubiKey dem Browser gemeldet hat UND stellen sicher, dass er dem Admin gehört!
-    VaultAdminKey usedAdminConfig = vaultService.findVaultAdminKeysByAdminId(
+    VaultAdminKey vaultAdminKey = vaultService.findVaultAdminKeysByAdminId(
       oidcUser.getPreferredUsername()).stream()
       .filter(c -> c.credentialId().equals(request.usedCredentialId())) // <-- NEU!
       .findFirst()
@@ -107,7 +105,7 @@ public class VaultController
     byte[] prfOutputKek = Base64.getDecoder().decode(request.prfOutput());
 
     // 2. Den Payload aus genau DIESEM JSON-Eintrag decodieren
-    byte[] encryptedPayload = Base64.getDecoder().decode(usedAdminConfig.encryptedMasterKey());
+    byte[] encryptedPayload = Base64.getDecoder().decode(vaultAdminKey.encryptedMasterKey());
 
     // 3. Extrahieren: 12 Bytes IV + Rest
     byte[] iv = Arrays.copyOfRange(encryptedPayload, 0, 12);
@@ -124,16 +122,15 @@ public class VaultController
     {
       byte[] decryptedMasterKeyBytes = cipher.doFinal(cipherTextAndTag);
 
-      log.trace("decrypted masterkey base64 = {}", 
-        Base64.getEncoder().encodeToString(decryptedMasterKeyBytes));
-      
       // KEY AN APP ÜBERGEBEN!
       // SecretKey masterKey = new SecretKeySpec(decryptedMasterKeyBytes, "AES");
       // appCryptoService.setUnlockedKey(masterKey);
-
-      System.out.println("Server entsperrt! Admin: "
-        + oidcUser.getPreferredUsername() + " | Key: "
-        + usedAdminConfig.description());
+      
+      log.info("Server unsealed by {} using {}",
+        oidcUser.getPreferredUsername(), vaultAdminKey.description());
+      log.debug("  - vault admin key = {}", vaultAdminKey);
+      log.trace("decrypted masterkey base64 = {}",
+        Base64.getEncoder().encodeToString(decryptedMasterKeyBytes));
 
     }
     catch(Exception e)

@@ -26,29 +26,62 @@ limitations under the License.
       <!--begin::App Main-->
       <main class="app-main">
         <div class="container mt-5">
-          <h1 class="mb-4">Admin</h1>
+          <div class="row justify-content-center">
+            <div class="col-md-8">
+              <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                  <h3 class="card-title mb-0">
+                    <i class="fa-solid fa-key me-2"></i>
+                    YubiKey Anlernen (PRF Extension)
+                  </h3>
+                </div>
+                <div class="card-body">
+                  <p class="text-muted mb-4">
+                    Geben Sie die ID des Admins und eine Beschreibung für den Key ein, um einen neuen Administrator-Schlüssel zu registrieren.
+                  </p>
 
-          <div class="card">
-            <h2>1.1 YubiKey Anlernen (PRF Extension)</h2>
-            <p>Geben Sie die ID des Admins, eine Beschreibung für den Key ein.</p>
+                  <div class="mb-3">
+                    <label for="adminId" class="form-label fw-bold">
+                      <i class="fa-solid fa-user-shield me-1"></i> Admin ID
+                    </label>
+                    <div class="input-group">
+                      <span class="input-group-text"><i class="fa-solid fa-at"></i></span>
+                      <input type="text" id="adminId" class="form-control" readonly="true" th:value="${principal.preferredUsername}" />
+                    </div>
+                  </div>
 
-            <label>Admin ID:</label>
-            <input type="text" id="adminId" readonly="true" th:value="${principal.preferredUsername}" />
+                  <div class="mb-4">
+                    <label for="description" class="form-label fw-bold">
+                      <i class="fa-solid fa-comment me-1"></i> Beschreibung des Keys
+                    </label>
+                    <div class="input-group">
+                      <span class="input-group-text"><i class="fa-solid fa-pen"></i></span>
+                      <input type="text" id="description" class="form-control" placeholder="z.B. YubiKey 5C Bio - Backup" />
+                    </div>
+                    <div class="form-text">Eine kurze Beschreibung, um den Hardware-Key später identifizieren zu können.</div>
+                  </div>
 
-            <label>Beschreibung des Keys (z.B. YubiKey Bio - Laptop):</label>
-            <input type="text" id="description" placeholder="YubiKey C Bio - Max" />
+                  <div class="d-grid gap-2">
+                    <button id="enrollButton" onclick="enrollYubiKey()" class="btn btn-primary btn-lg">
+                      <i class="fa-solid fa-fingerprint me-2"></i>
+                      YubiKey registrieren
+                    </button>
+                  </div>
+                </div>
+                <div class="card-footer bg-light text-center py-3">
+                  <small class="text-muted">
+                    <i class="fa-solid fa-circle-info me-1"></i>
+                    Der Master-Key wird lokal im Browser verschlüsselt und sicher an den Server übertragen.
+                  </small>
+                </div>
+              </div>
 
-            <button onclick="enrollYubiKey()" style="background: #0052cc; color: white; font-weight: bold; margin-top: 25px; border: none; cursor: pointer;">
-              YubiKey registrieren & JSON generieren
-            </button>
+              <div id="successAlert" class="alert alert-success d-none mt-4 shadow-sm" role="alert">
+                <h4 class="alert-heading"><i class="fa-solid fa-circle-check me-2"></i>Erfolg!</h4>
+                <p class="mb-0">Der YubiKey wurde erfolgreich registriert und die verschlüsselten Daten wurden auf dem Server gespeichert.</p>
+              </div>
+            </div>
           </div>
-
-          <div class="card" style="margin-top: 20px;">
-            <h2>2. Ergebnis für vault-admins.json</h2>
-            <p>Kopieren Sie diesen Block in Ihr Kubernetes Secret / Ihre JSON Datei:</p>
-            <pre id="jsonOutput">// Das Ergebnis erscheint hier...</pre>
-          </div>
-
         </div>
       </main>
     </div>
@@ -215,10 +248,12 @@ limitations under the License.
             throw new Error("Server-Fehler beim Speichern des Keys: " + response.statusText);
           }
 
-          // Auf dem Bildschirm ausgeben
-          document.getElementById('jsonOutput').innerText = JSON.stringify(finalJson, null, 2) + ",";
-          document.getElementById('jsonOutput').classList.add("success");
-          console.log("JSON erfolgreich generiert!");
+          // Erfolg anzeigen und Button deaktivieren
+          document.getElementById('successAlert').classList.remove('d-none');
+          document.getElementById('enrollButton').classList.add('disabled');
+          document.getElementById('enrollButton').disabled = true;
+          
+          console.log("JSON erfolgreich generiert und an Server gesendet!");
 
         }
         catch (error)

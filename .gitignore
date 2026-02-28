@@ -21,3 +21,4 @@ l9g-crypto-tool/data/
 *.ear
 *.swp
 *~
+**/vault-*

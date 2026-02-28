@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.5.11</version>
+    <relativePath/> <!-- lookup parent from repository -->
+  </parent>
+  
+  <groupId>de.l9g</groupId>
+  <artifactId>crypto-vault-sample-app</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <name>L9G Crypto Vault Sample Web Application</name>
+  <description>L9G Crypto Vault Sample Web Application</description>
+
+  
+  <properties>
+    <java.version>21</java.version>
+    <l9g.crypto.version>1.0.2</l9g.crypto.version>
+    <build.profile>default</build.profile>
+    <exec.inheritIo>true</exec.inheritIo>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <start-class>de.l9g.crypto.vault.sample.Application</start-class>
+  </properties>
+  
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-client</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-security</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-thymeleaf</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.thymeleaf.extras</groupId>
+      <artifactId>thymeleaf-extras-springsecurity6</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <optional>true</optional>
+    </dependency>
+    
+    <!-- webjars -->
+    <dependency>
+      <groupId>org.webjars</groupId>
+      <artifactId>webjars-locator-core</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.webjars</groupId>
+      <artifactId>bootstrap</artifactId>
+      <version>5.3.8</version>
+    </dependency>
+    <dependency>
+      <groupId>org.webjars</groupId>
+      <artifactId>font-awesome</artifactId>
+      <version>7.1.0</version>
+    </dependency>
+
+    <!-- L9G Crypto -->
+    <dependency>
+      <groupId>de.l9g</groupId>
+      <artifactId>crypto-core</artifactId>
+      <version>${l9g.crypto.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>de.l9g</groupId>
+      <artifactId>crypto-spring</artifactId>
+      <version>${l9g.crypto.version}</version>
+    </dependency>
+
+  </dependencies>
+
+  <build>
+    
+    <finalName>${project.artifactId}</finalName>
+
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+        <filtering>true</filtering>
+      </resource>
+    </resources>
+    
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <version>3.4.0</version>
+        <configuration>
+          <encoding>${project.build.sourceEncoding}</encoding>
+          <useDefaultDelimiters>false</useDefaultDelimiters>
+          <delimiters>
+            <delimiter>@</delimiter>
+          </delimiters>
+        </configuration>
+      </plugin>
+    
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+            </path>
+          </annotationProcessorPaths>
+        </configuration>
+        
+      </plugin>
+      
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+        <configuration>
+          <executable>true</executable>
+          <excludes>
+            <exclude>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+            </exclude>
+          </excludes>
+        </configuration>
+        <executions>
+          <execution>
+            <id>build-info</id>
+            <goals>
+              <goal>build-info</goal>
+            </goals>
+            <configuration>
+              <additionalProperties>
+                <java.version>${java.version}</java.version>
+                <java.version.date>${java.version.date}</java.version.date>
+                <java.vendor>${java.vendor}</java.vendor>
+                <java.vendor.url>${java.vendor.url}</java.vendor.url>
+                <java.vm.name>${java.vm.name}</java.vm.name>
+                <java.vm.vendor>${java.vm.vendor}</java.vm.vendor>
+                <java.vm.version>${java.vm.version}</java.vm.version>
+                <java.runtime.name>${java.runtime.name}</java.runtime.name>
+                <java.runtime.version>${java.runtime.version}</java.runtime.version>
+                <description>${project.description}</description>
+                <profile>${build.profile}</profile>
+                <os.arch>${os.arch}</os.arch>
+                <os.name>${os.name}</os.name>
+                <os.version>${os.version}</os.version>
+              </additionalProperties>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      
+    </plugins>
+  </build>
+</project>

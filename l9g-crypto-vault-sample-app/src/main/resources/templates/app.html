@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <title>AccountInfo</title>
+    <div th:replace="~{header::head}"></div>
+  </head>
+  <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+    <div class="app-wrapper">
+      <div th:replace="~{header::header}"></div>
+      <!--begin::App Main-->
+      <main class="app-main">
+
+        <div class="container mt-4">
+          <h1>AccountInfo</h1>
+          <nav class="appheader" sec:authorize="hasRole('ROLE_ADMIN')">
+            <div class="nav nav-tabs" id="nav-tab" role="tablist">
+              <a class="nav-link active" id="nav-userinfo-tab" data-bs-toggle="tab" href="#nav-userinfo" role="tab"
+                 aria-controls="nav-userinfo" aria-selected="false">Userinfo</a>
+
+              <div sec:authorize="hasAnyRole('ROLE_ADMIN')" th:remove="tag">
+                <a class="nav-link" id="nav-idtoken-tab" data-bs-toggle="tab" href="#nav-idtoken" role="tab"
+                   aria-controls="nav-idtoken" aria-selected="false">ID Token</a>
+                <a class="nav-link" id="nav-accesstoken-tab" data-bs-toggle="tab" href="#nav-accesstoken" role="tab"
+                   aria-controls="nav-accesstoken" aria-selected="false">Access Token</a>
+                <a class="nav-link" id="nav-refreshtoken-tab" data-bs-toggle="tab" href="#nav-refreshtoken" role="tab"
+                   aria-controls="nav-refreshtoken" aria-selected="false">Refresh Token</a>
+                <a class="nav-link" id="nav-logout-url-tab" data-bs-toggle="tab" href="#nav-logout-url" role="tab"
+                   aria-controls="nav-logout-url" aria-selected="true">JWT</a>
+                <a class="nav-link" id="nav-buildproperties-tab" data-bs-toggle="tab" href="#nav-buildproperties" role="tab"
+                   aria-controls="nav-buildproperties" aria-selected="false">Build Properties</a>
+                <a class="nav-link" id="nav-systemproperties-tab" data-bs-toggle="tab" href="#nav-systemproperties" role="tab"
+                   aria-controls="nav-systemproperties" aria-selected="false">System Properties</a>
+              </div>
+            </div>
+          </nav>
+
+          <div class="tab-content" id="nav-tabContent">
+
+            <div class="tab-pane fade show active" id="nav-userinfo" role="tabpanel" aria-labelledby="nav-userinfo-tab">
+              <div class="card appheader">
+                <div class="card-header">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div class="appcard-title">Userinfo</div>
+                  </div>
+                </div>
+                <div class="card-body">
+                  <table class="table table-striped">
+                    <thead>
+                      <tr>
+                        <th style="width: 20%" th:text="#{key}">>Key</th>
+                        <th style="width: 80%" th:text="#{value}">Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td th:text="#{email}">email</td>
+                        <td th:text="${idTokenMap.email}"></td>
+                      </tr>
+                      <tr>
+                        <td th:text="#{full_name}">name</td>
+                        <td th:text="${idTokenMap.name}"></td>
+                      </tr>
+                      <tr>
+                        <td th:text="#{lastname}">family_name</td>
+                        <td th:text="${idTokenMap.family_name}"></td>
+                      </tr>
+                      <tr>
+                        <td th:text="#{firstname}">given_name</td>
+                        <td th:text="${idTokenMap.given_name}"></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+
+            <div sec:authorize="hasAnyRole('ROLE_ADMIN')" th:remove="tag">
+
+              <div class="tab-pane fade show" id="nav-logout-url" role="tabpanel" aria-labelledby="nav-logout-url-tab">
+                <div class="card appheader">
+                  <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <div class="appcard-title">JWT</div>
+                    </div>
+                  </div>                
+                  <div class="card-body">              
+                    <table class="table table-striped">
+                      <thead>
+                        <tr>
+                          <th style="width: 20%" th:text="#{key}">>Key</th>
+                          <th style="width: 80%" th:text="#{value}">Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td class="discovery-background">end_session_endpoint</td>
+                          <td class="discovery-background" th:text="${oauth2EndSessionEndpoint}"></td>
+                        </tr>
+                        <tr>
+                          <td>id_token_hint
+                            <div class="mt-2">                    
+                              <button class="btn btn-secondary" th:data-token="${oauth2IdToken}" th:onclick="copyTokenFromData(this)"><i class="fa-regular fa-copy"></i></button>
+                            </div>
+                          </td>
+                          <td style="word-break: break-all;" th:text="${oauth2IdToken}"></td>
+                        </tr>
+                        <tr>
+                          <td>Copy ID Token</td>
+                          <td><a target="_blank" title="View on JWT.io" href="https://jwt.io"><img height="48" th:src="@{images/jwt.io-badge.svg}"></a></td>
+                        </tr>
+                        <tr>
+                          <td>Java-Libraries</td>
+                          <td>            
+                            <a class="ms-2" target="_blank" title="JWT Java Libraries" href="https://jwt.io/libraries?language=Java"><img height="48" th:src="@{images/jwt.io-logo-asset.svg}"></a>
+                            <span class="ms-2">
+                              <a target="_blank" href="https://mvnrepository.com/artifact/org.bitbucket.b_c/jose4j">maven: org.bitbucket.b_c / jose4j</a> /
+                              <a target="_blank" href="https://bitbucket.org/b_c/jose4j/wiki/Home">HOME</a>
+                            </span>
+                          </td>
+                        </tr>
+
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+
+              <div class="tab-pane fade show" id="nav-idtoken" role="tabpanel" aria-labelledby="nav-idtoken-tab">
+                <div class="card appheader">
+                  <div class="card-header">
+                    <div class="appcard-title">ID Token</div>
+                  </div>
+                  <div class="card-body">
+                    <table class="table table-striped">
+                      <thead>
+                        <tr>
+                          <th style="width: 10%" th:text="#{key}">>Key</th>
+                          <th style="width: 40%" th:text="#{value}">Value</th>
+                          <th style="width: 50%" th:text="#{description}">Description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr class="align-middle" th:each="entry : ${idTokenMap}">
+                          <td th:text="${entry.key}"></td>
+                          <td th:text="${entry.value}"></td>
+                          <td th:text="#{${entry.key}}"></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tab-pane fade show" id="nav-accesstoken" role="tabpanel" aria-labelledby="nav-accesstoken-tab">
+                <div class="card appheader">
+                  <div class="card-header">
+                    <div class="appcard-title">Access Token</div>
+                  </div>
+                  <div class="card-body">
+                    <table class="table table-striped">
+                      <thead>
+                        <tr>
+                          <th style="width: 10%" th:text="#{key}">>Key</th>
+                          <th style="width: 40%" th:text="#{value}">Value</th>
+                          <th style="width: 50%" th:text="#{description}">Description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr class="align-middle" th:each="entry : ${accessTokenMap}">
+                          <td th:text="${entry.key}"></td>
+                          <td th:text="${entry.value}"></td>
+                          <td th:text="#{${entry.key}}"></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tab-pane fade show" id="nav-refreshtoken" role="tabpanel" aria-labelledby="nav-refreshtoken-tab">
+                <div class="card appheader">
+                  <div class="card-header">
+                    <div class="appcard-title">Refresh Token</div>
+                  </div>
+                  <div class="card-body">
+                    <table class="table table-striped">
+                      <thead>
+                        <tr>
+                          <th style="width: 10%" th:text="#{key}">>Key</th>
+                          <th style="width: 40%" th:text="#{value}">Value</th>
+                          <th style="width: 50%" th:text="#{description}">Description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr class="align-middle" th:each="entry : ${refreshTokenMap}">
+                          <td th:text="${entry.key}"></td>
+                          <td th:text="${entry.value}"></td>
+                          <td th:text="#{${entry.key}}"></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+
+              <div class="tab-pane fade show" id="nav-buildproperties" role="tabpanel" aria-labelledby="nav-buildproperties-tab">
+                <div class="card appheader">
+                  <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <div class="appcard-title">Build Properties</div>
+                    </div>
+                  </div>                
+                  <div class="card-body">              
+                    <table class="table table-striped">
+                      <thead>
+                        <tr>
+                          <th style="width: 20%" th:text="#{key}">>Key</th>
+                          <th style="width: 80%" th:text="#{value}">Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr class="align-middle" th:each="entry : ${buildProperties}">
+                          <td th:text="${entry.key}"></td>
+                          <td th:text="${entry.value}"></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div class="tab-pane fade show" id="nav-systemproperties" role="tabpanel" aria-labelledby="nav-systemproperties-tab">
+                <div class="card appheader">
+                  <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                      <div class="appcard-title">System Properties</div>
+                    </div>
+                  </div>                
+                  <div class="card-body">              
+                    <table class="table table-striped">
+                      <thead>
+                        <tr>
+                          <th style="width: 20%" th:text="#{key}">>Key</th>
+                          <th style="width: 80%" th:text="#{value}">Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr class="align-middle" th:each="entry : ${systemProperties}">
+                          <td th:text="${entry.key}"></td>
+                          <td th:text="${entry.value}"></td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </main> 
+      <!--end::App Main-->
+    </div>
+
+    <div class="fixed-bottom m-2" style="font-size: 8pt;">
+      <span th:text='${buildProperties.version }'>version</span>
+    </div>
+
+    <script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+
+    <script sec:authorize="hasAnyRole('ROLE_ADMIN')">
+      function copyTokenFromData(button)
+      {
+        const token = button.getAttribute('data-token');
+        const tempInput = document.createElement("textarea");
+        tempInput.value = token;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand("copy");
+        document.body.removeChild(tempInput);
+      }
+    </script>
+
+  </body>
+</html>

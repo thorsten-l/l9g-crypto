@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <title>AccountInfo</title>
+    <div th:replace="~{header::head}"></div>
+  </head>
+  <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+    <div class="app-wrapper">
+      <div th:replace="~{header::header}"></div>
+      <!--begin::App Main-->
+      <main class="app-main">
+        <div style="margin-top: 3em" class="container">
+          <div class="d-flex justify-content-center">
+            <p>
+              <a class="btn btn-primary" th:href="@{/app}">
+                <span th:text="#{login}" th:remove="tag">login</span>
+              </a>
+            </p>
+          </div>
+        </div>        
+      </main> 
+      <!--end::App Main-->
+    </div>
+    
+    <div class="fixed-bottom m-2" style="font-size: 8pt;">
+      <span th:text='${buildProperties.version }'>version</span>
+    </div>
+
+    <script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+
+  </body>
+</html>

@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: L9G Crypto Vault Sample Web Application
+  profiles:
+    active: default
+  config:
+    import: optional:file:data/config.yaml
+
+  security:
+    oauth2:
+      client:
+        registration:
+          app:
+            client-id: nix
+            client-secret: "*** not set ***"
+            scope: openid,profile,email,roles
+        provider:
+          app:
+            issuer-uri: https://id.dev.sonia.de/realms/dev
+            user-name-attribute: preferred_username
+
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
+logging:
+  pattern:
+    console: "%date{yyyy-MM-dd HH:mm:ss} %magenta([%thread]) %highlight(%-5level) %logger:%line - %yellow(%msg %n)"
+  level:
+    root: INFO
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+    session:
+      timeout: 9h
+  forward-headers-strategy: framework
+  

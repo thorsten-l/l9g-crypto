@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<!--
+Copyright 2025 Thorsten Ludewig (t.ludewig@gmail.com).
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <title>AccountInfo</title>
+    <div th:replace="~{header::head}"></div>
+  </head>
+  <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+    <div class="app-wrapper">
+      <div th:replace="~{header::header}"></div>
+      <!--begin::App Main-->
+      <main class="app-main">
+        <div class="container mt-5">
+          <h1 class="mb-4">Admin</h1>
+
+          <div class="card">
+            <h2>1.1 YubiKey Anlernen (PRF Extension)</h2>
+            <p>Geben Sie die ID des Admins, eine Beschreibung für den Key ein.</p>
+
+            <label>Admin ID:</label>
+            <input type="text" id="adminId" readonly="true" th:value="${principal.preferredUsername}" />
+
+            <label>Beschreibung des Keys (z.B. YubiKey Bio - Laptop):</label>
+            <input type="text" id="description" placeholder="YubiKey C Bio - Max" />
+
+            <button onclick="enrollYubiKey()" style="background: #0052cc; color: white; font-weight: bold; margin-top: 25px; border: none; cursor: pointer;">
+              YubiKey registrieren & JSON generieren
+            </button>
+          </div>
+
+          <div class="card" style="margin-top: 20px;">
+            <h2>2. Ergebnis für vault-admins.json</h2>
+            <p>Kopieren Sie diesen Block in Ihr Kubernetes Secret / Ihre JSON Datei:</p>
+            <pre id="jsonOutput">// Das Ergebnis erscheint hier...</pre>
+          </div>
+
+        </div>
+      </main>
+    </div>
+    
+    <script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+
+    <script>
+      const arrayBufferToBase64 = buffer => btoa(String.fromCharCode(...new Uint8Array(buffer)));
+      const base64ToArrayBuffer = base64 => Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+      
+      let masterKeyBase64 = null;
+      
+      // In a production environment THIS MAKES NO SENSE!!!
+      // It is for this development sample only.
+      // the masterkey should not be stored in plain text on the server
+      fetch('/api/v1/admin/vault/masterkey')
+        .then(response => response.text())
+        .then(data => {
+          masterKeyBase64 = data;
+          console.debug("Masterkey successfully loaded.");
+        })
+        .catch(error => console.error('Error fetching masterkey:', error));
+
+      async function enrollYubiKey()
+      {
+        const adminId = document.getElementById('adminId').value;
+        const description = document.getElementById('description').value;
+        
+        if (!adminId || !masterKeyBase64 || !description)
+        {
+          alert("Bitte füllen Sie alle Felder (Admin ID, Beschreibung und Master Key) aus!");
+          return;
+        }
+
+        try
+        {
+          const prfSalt = crypto.getRandomValues(new Uint8Array(32));
+
+          // SCHRITT 1: Credential auf dem YubiKey erstellen
+          const publicKeyCredentialCreationOptions = {
+            challenge: crypto.getRandomValues(new Uint8Array(32)),
+            rp: {name: "Spring Boot Vault Setup", id: window.location.hostname},
+            user: {
+              id: crypto.getRandomValues(new Uint8Array(16)),
+              name: adminId,
+              displayName: adminId
+            },
+            pubKeyCredParams: [
+              {alg: -7, type: "public-key"}, // ES256
+              {alg: -257, type: "public-key"} // RS256
+            ],
+            authenticatorSelection: {
+              authenticatorAttachment: "cross-platform",
+              userVerification: "required",
+              residentKey: "required" // Wichtig für die zuverlässige PRF Funktion
+            },
+            extensions: {
+              prf: {
+                eval: {first: prfSalt}
+              }
+            }
+          };
+
+          console.log("Warte auf YubiKey (Schritt 1: Erstellen)...");
+          const credential = await navigator.credentials.create({
+            publicKey: publicKeyCredentialCreationOptions
+          });
+
+          const extensionResults = credential.getClientExtensionResults();
+          if (!extensionResults.prf || !extensionResults.prf.enabled)
+          {
+            throw new Error("Dieser YubiKey/Browser unterstützt die PRF Extension grundsätzlich nicht!");
+          }
+
+          const credentialId = new Uint8Array(credential.rawId);
+          let prfOutputKek;
+
+          // Prüfen, ob der YubiKey das Ergebnis direkt bei der Erstellung mitgeliefert hat
+          if (extensionResults.prf.results && extensionResults.prf.results.first)
+          {
+            prfOutputKek = extensionResults.prf.results.first;
+            console.log("PRF Output direkt erhalten.");
+          }
+          else
+          {
+            // SCHRITT 2: Fallback! Wir müssen einen GET-Aufruf machen, um das Secret zu bekommen.
+            console.log("Mache Fallback GET-Aufruf für PRF Secret...");
+
+            // Wir informieren den User ganz kurz, falls der Chrome-Dialog nicht sofort offensichtlich ist
+            setTimeout(() => {
+              if (!prfOutputKek)
+                alert("Bitte berühren Sie den YubiKey noch ein zweites Mal, um das kryptographische Geheimnis final zu erzeugen!");
+            }, 500);
+
+            const assertion = await navigator.credentials.get({
+              publicKey: {
+                challenge: crypto.getRandomValues(new Uint8Array(32)),
+                allowCredentials: [{
+                    id: credentialId,
+                    type: "public-key",
+                    transports: ["usb", "nfc", "internal"]
+                  }],
+                userVerification: "required",
+                extensions: {
+                  prf: {
+                    eval: {first: prfSalt}
+                  }
+                }
+              }
+            });
+
+            const getExtResults = assertion.getClientExtensionResults();
+            if (!getExtResults.prf || !getExtResults.prf.results || !getExtResults.prf.results.first)
+            {
+              throw new Error("Fehler beim Berechnen des PRF Secrets im zweiten Schritt.");
+            }
+            prfOutputKek = getExtResults.prf.results.first;
+            console.log("PRF Output im zweiten Schritt erfolgreich erhalten.");
+          }
+
+          // SCHRITT 3: Verschlüsseln (WebCrypto API)
+          // Wir nutzen den PRF-Output als KEK (Key Encryption Key), um den echten Master-Key zu verschlüsseln
+          const masterKeyBytes = base64ToArrayBuffer(masterKeyBase64);
+          const iv = crypto.getRandomValues(new Uint8Array(12));
+
+          const importedKek = await crypto.subtle.importKey(
+                  "raw", prfOutputKek, {name: "AES-GCM"}, false, ["encrypt"]
+                  );
+
+          const cipherTextBuffer = await crypto.subtle.encrypt(
+          {name: "AES-GCM", iv: iv, tagLength: 128},
+                  importedKek,
+                  masterKeyBytes
+                  );
+
+          // IV und Ciphertext (inkl. Tag) zusammenfügen (Genau so, wie Java es erwartet)
+          const encryptedPayload = new Uint8Array(iv.length + cipherTextBuffer.byteLength);
+          encryptedPayload.set(iv, 0);
+          encryptedPayload.set(new Uint8Array(cipherTextBuffer), iv.length);
+
+          // SCHRITT 4: Das finale JSON Objekt bauen
+          const finalJson = {
+            adminId: adminId,
+            description: description,
+            credentialId: arrayBufferToBase64(credentialId),
+            prfSalt: arrayBufferToBase64(prfSalt),
+            encryptedMasterKey: arrayBufferToBase64(encryptedPayload)
+          };
+
+          console.log("Sende Daten an Server...");
+          const csrfToken = document.querySelector('meta[name="_csrf"]').content;
+          const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+
+          const response = await fetch('/api/v1/admin/vault/addadminkey', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              [csrfHeader]: csrfToken
+            },
+            body: JSON.stringify(finalJson)
+          });
+
+          if (!response.ok) {
+            throw new Error("Server-Fehler beim Speichern des Keys: " + response.statusText);
+          }
+
+          // Auf dem Bildschirm ausgeben
+          document.getElementById('jsonOutput').innerText = JSON.stringify(finalJson, null, 2) + ",";
+          document.getElementById('jsonOutput').classList.add("success");
+          console.log("JSON erfolgreich generiert!");
+
+        }
+        catch (error)
+        {
+          console.error(error);
+          alert("Fehler beim Anlernen: " + error.message);
+        }
+      }
+    </script>
+
+
+  </body>
+</html>

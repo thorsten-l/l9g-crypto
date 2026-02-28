@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<!--
+Copyright 2026 Thorsten Ludewig (t.ludewig@gmail.com).
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <title>Vault Unseal</title>
+    <!-- Bindet CSS, FontAwesome und auch die CSRF-Meta-Tags ein -->
+    <div th:replace="~{header::head}"></div>
+  </head>
+  <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+    <div class="app-wrapper">
+      <div th:replace="~{header::header}"></div>
+
+      <!--begin::App Main-->
+      <main class="app-main">
+        <div class="container mt-5">
+
+          <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+              <h1 class="mb-4 text-center">Vault Unseal</h1>
+
+              <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
+                  <div class="text-center mb-4">
+                    <!-- FontAwesome Icon passend zu Ihrem Theme -->
+                    <i class="fa-solid fa-shield-halved text-primary mb-3" style="font-size: 4em;"></i>
+                    <p class="card-text text-muted">
+                      Der Vault ist aktuell versiegelt. Bitte authentifizieren Sie sich mit Ihrem hinterlegten YubiKey, um den Master-Schlüssel in den Speicher der Applikation zu laden.
+                    </p>
+                  </div>
+
+                  <div id="alertBox" class="alert d-none" role="alert"></div>
+
+                  <button id="unsealBtn" class="btn btn-primary btn-lg w-100 py-3 fw-bold" onclick="unsealServer()">
+                    <i class="fa-solid fa-key me-2"></i> Server mit YubiKey entsperren
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+
+    <script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+
+    <!-- Begin WebAuthn Unseal Script -->
+    <script>
+      // Hilfsfunktionen für Base64
+      const base64ToArrayBuffer = base64 => Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+      const arrayBufferToBase64 = buffer => btoa(String.fromCharCode(...new Uint8Array(buffer)));
+
+      // Die WebAuthn Dictionary-Keys (evalByCredential) müssen zwingend im Base64URL Format vorliegen!
+      const arrayBufferToBase64Url = buffer => {
+        return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=+$/, '');
+      };
+
+      // UI Helfer
+      function showAlert(message, type)
+      {
+        const alertBox = document.getElementById('alertBox');
+        alertBox.className = `alert alert-${type} mt-3`;
+        alertBox.innerText = message;
+      }
+
+      async function unsealServer()
+      {
+        const btn = document.getElementById('unsealBtn');
+        btn.disabled = true;
+        showAlert("Lade registrierte YubiKeys vom Server...", "info");
+
+        try
+        {
+          // 1. Lade alle registrierten Keys dieses Admins über die API
+          const response = await fetch('/api/v1/admin/vault/challenge-data');
+
+          if (!response.ok)
+          {
+            throw new Error("Fehler beim Laden der YubiKey-Daten. HTTP Status: " + response.status);
+          }
+
+          const adminKeys = await response.json();
+
+          if (!adminKeys || adminKeys.length === 0)
+          {
+            throw new Error("Für Ihren Account sind keine YubiKeys hinterlegt.");
+          }
+
+          const allowCredentialsList = [];
+          const prfEvalByCredentialMap = {};
+
+          // 2. Listen für den YubiKey-Aufruf vorbereiten
+          adminKeys.forEach(config => {
+            const credIdBytes = base64ToArrayBuffer(config.credentialId);
+            const saltBytes = base64ToArrayBuffer(config.prfSalt);
+
+            allowCredentialsList.push({
+              id: credIdBytes,
+              type: "public-key",
+              transports: ["usb", "nfc", "internal"]
+            });
+
+            // Das Wörterbuch mappt Base64Url(ID) -> Salt
+            const credIdBase64Url = arrayBufferToBase64Url(credIdBytes);
+            prfEvalByCredentialMap[credIdBase64Url] = {
+              first: saltBytes
+            };
+          });
+
+          showAlert(`Bitte bedienen Sie einen Ihrer ${allowCredentialsList.length} hinterlegten YubiKeys...`, "primary");
+
+          // 3. WebAuthn Prompt (Chrome fragt den Nutzer)
+          const assertion = await navigator.credentials.get({
+            publicKey: {
+              challenge: crypto.getRandomValues(new Uint8Array(32)),
+              allowCredentials: allowCredentialsList,
+              userVerification: "required", // PIN oder Fingerabdruck zwingend
+              extensions: {
+                prf: {
+                  evalByCredential: prfEvalByCredentialMap
+                }
+              }
+            }
+          });
+
+          // 4. Kryptographisches Ergebnis auslesen
+          const extensionResults = assertion.getClientExtensionResults();
+          if (!extensionResults.prf || !extensionResults.prf.results || !extensionResults.prf.results.first)
+          {
+            throw new Error("Der YubiKey hat das PRF Geheimnis nicht berechnet.");
+          }
+
+          // WELCHER Key wurde berührt? Wir brauchen das Standard-Base64 für Java!
+          const usedCredentialIdBase64 = arrayBufferToBase64(assertion.rawId);
+          const prfSecretBase64 = arrayBufferToBase64(extensionResults.prf.results.first);
+
+          showAlert("Erfolgreich! Entsperre Server...", "info");
+
+          // 5. POST Request an das Spring Boot Backend vorbereiten
+          const fetchOptions = {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              usedCredentialId: usedCredentialIdBase64,
+              prfOutput: prfSecretBase64
+            })
+          };
+
+          // CSRF Token aus dem header.html auslesen und mitsenden
+          const metaCsrf = document.querySelector('meta[name="_csrf"]');
+          const metaCsrfHeader = document.querySelector('meta[name="_csrf_header"]');
+          if (metaCsrf && metaCsrfHeader && metaCsrf.getAttribute('content'))
+          {
+            fetchOptions.headers[metaCsrfHeader.getAttribute('content')] = metaCsrf.getAttribute('content');
+          }
+
+          // 6. Senden und Entsperren
+          const unsealResponse = await fetch('/api/v1/admin/vault/unseal', fetchOptions);
+
+          if (unsealResponse.ok)
+          {
+            showAlert("Server erfolgreich entsperrt!", "success");
+            btn.classList.replace('btn-primary', 'btn-success');
+            btn.innerHTML = '<i class="fa-solid fa-lock-open me-2"></i> Vault ist entsperrt';
+          }
+          else
+          {
+            throw new Error("Server hat den Schlüssel abgelehnt (HTTP " + unsealResponse.status + ").");
+          }
+
+        }
+        catch (error)
+        {
+          console.error("Unseal fehlgeschlagen:", error);
+          showAlert("Fehler: " + error.message, "danger");
+          btn.disabled = false;
+        }
+      }
+    </script>
+  </body>
+</html>

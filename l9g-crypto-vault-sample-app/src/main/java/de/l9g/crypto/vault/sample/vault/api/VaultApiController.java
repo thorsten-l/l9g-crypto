@@ -51,17 +51,6 @@ public class VaultApiController
 {
   private final VaultService vaultService;
 
-  // In a production environment THIS MAKES NO SENSE!!!
-  // It is for this development sample only.
-  // the masterkey should not be stored in plain text on the server
-  @GetMapping(path = "/masterkey", produces = MediaType.TEXT_PLAIN_VALUE)
-  ResponseEntity<String> masterkey(
-    @AuthenticationPrincipal DefaultOidcUser principal)
-  {
-    log.debug("principal = {}", principal);
-    return ResponseEntity.ok(vaultService.getSecret());
-  }
-
   @PostMapping(path = "/addadminkey", produces = MediaType.TEXT_PLAIN_VALUE)
   ResponseEntity<String> addAdminkey(
     @AuthenticationPrincipal DefaultOidcUser principal,
@@ -74,10 +63,10 @@ public class VaultApiController
   }
 
   @GetMapping("/challenge-data")
-  public List<VaultAdminKey> getChallengeData(@AuthenticationPrincipal OidcUser oidcUser)
+  public List<VaultAdminKey> getChallengeData(
+    @AuthenticationPrincipal OidcUser oidcUser)
     throws Exception
   {
-
     List<VaultAdminKey> adminKeys = vaultService.findVaultAdminKeysByAdminId(
       oidcUser.getPreferredUsername());
 
@@ -93,28 +82,22 @@ public class VaultApiController
     @AuthenticationPrincipal OidcUser oidcUser)
     throws Exception
   {
-    // WICHTIG: Wir suchen exakt den Config-Eintrag heraus, dessen Credential-ID 
-    // der YubiKey dem Browser gemeldet hat UND stellen sicher, dass er dem Admin gehört!
     VaultAdminKey vaultAdminKey = vaultService.findVaultAdminKeysByAdminId(
       oidcUser.getPreferredUsername()).stream()
-      .filter(c -> c.credentialId().equals(request.usedCredentialId())) // <-- NEU!
+      .filter(c -> c.credentialId().equals(request.usedCredentialId()))
       .findFirst()
-      .orElseThrow(() -> new RuntimeException("Unbekannter oder nicht berechtigter YubiKey!"));
+      .orElseThrow(() -> new RuntimeException(
+      "Unbekannter oder nicht berechtigter YubiKey!"));
 
-    // 1. Das Geheimnis vom YubiKey decodieren (KEK)
     byte[] prfOutputKek = Base64.getDecoder().decode(request.prfOutput());
-
-    // 2. Den Payload aus genau DIESEM JSON-Eintrag decodieren
-    byte[] encryptedPayload = Base64.getDecoder().decode(vaultAdminKey.encryptedMasterKey());
-
-    // 3. Extrahieren: 12 Bytes IV + Rest
+    byte[] encryptedPayload = Base64.getDecoder().decode(
+      vaultAdminKey.encryptedMasterKey());
     byte[] iv = Arrays.copyOfRange(encryptedPayload, 0, 12);
-    byte[] cipherTextAndTag = Arrays.copyOfRange(encryptedPayload, 12, encryptedPayload.length);
+    byte[] cipherTextAndTag = Arrays.copyOfRange(
+      encryptedPayload, 12, encryptedPayload.length);
 
-    // 4. Entschlüsseln
     SecretKey kek = new SecretKeySpec(prfOutputKek, "AES");
     GCMParameterSpec gcmSpec = new GCMParameterSpec(128, iv);
-
     Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
     cipher.init(Cipher.DECRYPT_MODE, kek, gcmSpec);
 
@@ -125,17 +108,16 @@ public class VaultApiController
       // KEY AN APP ÜBERGEBEN!
       // SecretKey masterKey = new SecretKeySpec(decryptedMasterKeyBytes, "AES");
       // appCryptoService.setUnlockedKey(masterKey);
-      
       log.info("Server unsealed by {} using {}",
         oidcUser.getPreferredUsername(), vaultAdminKey.description());
       log.debug("  - vault admin key = {}", vaultAdminKey);
       log.trace("decrypted masterkey base64 = {}",
         Base64.getEncoder().encodeToString(decryptedMasterKeyBytes));
-
     }
     catch(Exception e)
     {
-      throw new RuntimeException("Entschlüsselung fehlgeschlagen. Falscher YubiKey?", e);
+      throw new RuntimeException(
+        "Entschlüsselung fehlgeschlagen. Falscher YubiKey?", e);
     }
     finally
     {

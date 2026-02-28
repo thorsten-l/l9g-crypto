@@ -37,12 +37,13 @@ limitations under the License.
                 </div>
                 <div class="card-body p-4">
                   <div class="d-grid gap-3">
-                    <a th:href="@{/admin/vault/enrollment}" class="btn btn-outline-primary btn-lg text-start p-3">
-                      <i class="fa-solid fa-user-plus me-3 fa-fw"></i>
-                      <span class="fw-bold">YubiKey Enrollment</span>
-                      <div class="small text-muted ms-5">Registriere neue Hardware-Keys für Administratoren.</div>
-                    </a>
-
+                    <div th:if="${isUnsealed || adminKeysIsEmpty}" th:remove="tag">
+                      <a th:href="@{/admin/vault/enrollment}" class="btn btn-outline-primary btn-lg text-start p-3">
+                        <i class="fa-solid fa-user-plus me-3 fa-fw"></i>
+                        <span class="fw-bold">YubiKey Enrollment</span>
+                        <div class="small text-muted ms-5">Registriere neue Hardware-Keys für Administratoren.</div>
+                      </a>
+                    </div>
                     <a th:href="@{/admin/vault/unseal}" class="btn btn-outline-warning btn-lg text-start p-3 text-dark">
                       <i class="fa-solid fa-unlock-keyhole me-3 fa-fw"></i>
                       <span class="fw-bold">Unseal Server</span>

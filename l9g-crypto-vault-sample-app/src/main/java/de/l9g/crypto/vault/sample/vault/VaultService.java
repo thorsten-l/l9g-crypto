@@ -96,6 +96,11 @@ public class VaultService
     return resultList;
   }
 
+  public synchronized boolean adminKeysIsEmpty()
+  {
+    return adminKeys.isEmpty();
+  }
+  
   public synchronized SecretKey getUnlockedKey()
   {
     if(masterkeyTTL > 0

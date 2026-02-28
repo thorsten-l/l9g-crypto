@@ -20,7 +20,7 @@ limitations under the License.
     <title>AccountInfo</title>
     <div th:replace="~{header::head}"></div>
   </head>
-  <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+  <body th:if="${isUnsealed || adminKeysIsEmpty}" class="layout-fixed sidebar-expand-lg bg-body-tertiary">
     <div class="app-wrapper">
       <div th:replace="~{header::header}"></div>
       <!--begin::App Main-->

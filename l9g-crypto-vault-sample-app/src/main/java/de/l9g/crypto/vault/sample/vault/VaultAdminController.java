@@ -48,6 +48,8 @@ public class VaultAdminController
     log.debug("locale={}", locale);
     model.addAttribute("principal", principal);
     model.addAttribute("locale", locale.toString());
+    model.addAttribute("adminKeysIsEmpty", vaultService.adminKeysIsEmpty());
+    model.addAttribute("isUnsealed", (vaultService.getUnlockedKey() != null));
     return "admin/enrollment";
   }
   

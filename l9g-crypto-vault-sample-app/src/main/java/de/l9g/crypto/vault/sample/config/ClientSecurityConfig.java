@@ -21,7 +21,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.util.Collection;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authorization.AuthorizationDecision;
@@ -47,8 +46,6 @@ import org.springframework.security.web.authentication.logout.LogoutHandler;
 import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-
 /**
  * Security configuration for the client-side of the application.
  * This class configures Spring Security for OAuth2/OIDC, including authorization,
@@ -58,7 +55,6 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
  */
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
 @Slf4j
 @RequiredArgsConstructor
 public class ClientSecurityConfig
@@ -104,7 +100,7 @@ public class ClientSecurityConfig
         // allow all
         .requestMatchers("/", "/manifest.json",
           "/manifest.webmanifest",
-          "/system/test/**","/error/**", "/api/v1/buildinfo",
+          "/system/test/**", "/error/**", "/api/v1/buildinfo",
           "/webjars/**", "/icons/**", "/css/**", "/js/**", "/images/**",
           "/actuator/**", "/flags/**", "/logout", "/oidc-backchannel-logout",
           "/android**",
@@ -112,14 +108,17 @@ public class ClientSecurityConfig
           "/favicon**"
         )
         .permitAll()
-        .requestMatchers("/supersecret/**").access((authentication, context) -> {
-          boolean hasAdminRole = authentication.get().getAuthorities().stream()
-            .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-          boolean isUnsealed = vaultService.getUnlockedKey() != null;
-          return new AuthorizationDecision(hasAdminRole && isUnsealed);
-        })
-        .requestMatchers("/admin**", "/api/v1/admin**", "/v3/api-docs")
+        .requestMatchers("/supersecret/**").access((authentication, context) ->
+      {
+        boolean hasAdminRole = authentication.get().getAuthorities().stream()
+          .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean isUnsealed = vaultService.getUnlockedKey() != null;
+        return new AuthorizationDecision(hasAdminRole && isUnsealed);
+      })
+        .requestMatchers("/admin", "/admin/**", "/api/v1/admin", "/api/v1/admin/**", "/v3/api-docs")
         .hasRole("ADMIN")
+        .requestMatchers("/app", "/app/**")
+        .hasRole("PUBLISHER")
         .anyRequest()
         .authenticated()
     )
@@ -162,13 +161,13 @@ public class ClientSecurityConfig
       Authentication authentication) ->
     {
       String sessionId = "no-session";
-      if (request.getSession(false) != null)
+      if(request.getSession(false) != null)
       {
         sessionId = request.getSession().getId();
       }
 
       String username = "anonymous";
-      if (authentication != null
+      if(authentication != null
         && authentication.getPrincipal() instanceof OidcUser oidcUser)
       {
         username = oidcUser.getName();

@@ -16,10 +16,12 @@
 package de.l9g.crypto.vault.sample.controller;
 
 import de.l9g.crypto.vault.sample.vault.VaultService;
+import java.util.Base64;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.stereotype.Controller;
@@ -36,9 +38,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
  */
 @Controller
 @Slf4j
-@RequestMapping(path = "/admin")
+@RequestMapping(path = "/supersecret")
 @RequiredArgsConstructor
-public class AdminController
+@PreAuthorize("hasRole('ADMIN')")
+public class SupersecretController
 {
   private final VaultService vaultService;
 
@@ -51,18 +54,20 @@ public class AdminController
    * @return the name of the home template to render
    */
   @GetMapping(
-    {
-      "", "/"
-    })
-  public String home(@AuthenticationPrincipal DefaultOidcUser principal, Model model)
   {
-    log.debug("admin home principal = {}", principal);
+    "", "/"
+  })
+  public String secretHome(
+    @AuthenticationPrincipal DefaultOidcUser principal, Model model)
+  {
+    log.debug("secret home principal = {}", principal);
     Locale locale = LocaleContextHolder.getLocale();
     log.debug("locale={}", locale);
     model.addAttribute("locale", locale.toString());
     model.addAttribute("principal", principal);
-    model.addAttribute("isUnsealed", (vaultService.getUnlockedKey() != null));
-    return "admin/home";
+    model.addAttribute("vault", vaultService);
+    model.addAttribute("masterkey", Base64.getEncoder().encodeToString( 
+      vaultService.getUnlockedKey().getEncoded()));
+    return "secret/home";
   }
-
 }

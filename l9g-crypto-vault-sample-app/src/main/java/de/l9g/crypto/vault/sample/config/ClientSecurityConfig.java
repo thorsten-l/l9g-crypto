@@ -15,12 +15,16 @@
  */
 package de.l9g.crypto.vault.sample.config;
 
+import de.l9g.crypto.vault.sample.vault.VaultService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Collection;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authorization.AuthorizationDecision;
 import static org.springframework.security.config.Customizer.withDefaults;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -56,31 +60,14 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 @EnableWebSecurity
 @EnableMethodSecurity
 @Slf4j
+@RequiredArgsConstructor
 public class ClientSecurityConfig
 {
   private final AppAuthoritiesConverter appAuthoritiesConverter;
 
   private final LoginSuccessHandler loginSuccessHandler;
 
-  /**
-   * Content Security Policy directives for enhanced security.
-   * This policy defines allowed content sources for various types of resources.
-   */
-  // private final String CSP_POLICY;
-
-  /**
-   * Constructs a {@code ClientSecurityConfig} instance.
-   *
-   * @param appAuthoritiesConverter The converter for application authorities.
-   * @param loginSuccessHandler The handler for successful logins.
-   */
-  public ClientSecurityConfig(
-    AppAuthoritiesConverter appAuthoritiesConverter,
-    LoginSuccessHandler loginSuccessHandler )
-  {
-    this.appAuthoritiesConverter = appAuthoritiesConverter;
-    this.loginSuccessHandler = loginSuccessHandler;
-  }
+  private final VaultService vaultService;
 
   /**
    * Configures the security filter chain for HTTP requests.
@@ -125,6 +112,12 @@ public class ClientSecurityConfig
           "/favicon**"
         )
         .permitAll()
+        .requestMatchers("/supersecret/**").access((authentication, context) -> {
+          boolean hasAdminRole = authentication.get().getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+          boolean isUnsealed = vaultService.getUnlockedKey() != null;
+          return new AuthorizationDecision(hasAdminRole && isUnsealed);
+        })
         .requestMatchers("/admin**", "/api/v1/admin**", "/v3/api-docs")
         .hasRole("ADMIN")
         .anyRequest()
@@ -133,7 +126,6 @@ public class ClientSecurityConfig
       .headers(
         headers -> headers
           .frameOptions(frameOptions -> frameOptions.disable())
-          // .contentSecurityPolicy(csp -> csp.policyDirectives(CSP_POLICY))
       )
       .oauth2Login(
         login -> login

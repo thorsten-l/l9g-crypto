@@ -73,8 +73,12 @@ limitations under the License.
                       <div class="form-text">Der Hauptschlüssel des Servers</div>
                     </div>
 
-                    <div class="d-grid gap-2">
-                      <button id="enrollButton" type="submit" class="btn btn-primary btn-lg">
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                      <a th:href="@{/admin}" class="btn btn-outline-secondary btn-lg px-4 me-md-2">
+                        <i class="fa-solid fa-xmark me-2"></i>
+                        Abbrechen
+                      </a>
+                      <button id="enrollButton" type="submit" class="btn btn-primary btn-lg px-5">
                         <i class="fa-solid fa-fingerprint me-2"></i>
                         YubiKey registrieren
                       </button>

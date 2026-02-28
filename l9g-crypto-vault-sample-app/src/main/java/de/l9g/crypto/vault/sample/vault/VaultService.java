@@ -16,7 +16,6 @@
 package de.l9g.crypto.vault.sample.vault;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -24,6 +23,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import javax.crypto.SecretKey;
+import org.springframework.beans.factory.annotation.Value;
 
 /**
  *
@@ -37,13 +38,18 @@ public class VaultService
 
   private final List<VaultAdminKey> adminKeys = new ArrayList<>();
 
-  @Getter
-  private String secret;
+  private final long masterkeyTTL;
 
-  public VaultService()
+  private SecretKey masterKey;
+
+  private long masterKeyTimestamp;
+
+  public VaultService(@Value("${app.vault.masterkey-ttl}") long masterkeyTTL)
   {
+    this.masterkeyTTL = masterkeyTTL;
+    log.debug("masterKeyTTL={}",masterkeyTTL);
     ObjectMapper mapper = new ObjectMapper();
-    
+
     try
     {
       File adminKeysFile = new File(ADMINKEYS_FILENAME);
@@ -88,6 +94,22 @@ public class VaultService
       }
     });
     return resultList;
+  }
+
+  public synchronized SecretKey getUnlockedKey()
+  {
+    if(masterkeyTTL > 0
+      && (System.currentTimeMillis() - masterKeyTimestamp) > masterkeyTTL)
+    {
+      masterKey = null;
+    }
+    return masterKey;
+  }
+
+  public synchronized void setUnlockedKey(SecretKey masterKey)
+  {
+    this.masterKey = masterKey;
+    this.masterKeyTimestamp = System.currentTimeMillis();
   }
 
 }

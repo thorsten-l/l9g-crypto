@@ -19,7 +19,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.util.Collection;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import static org.springframework.security.config.Customizer.withDefaults;
@@ -74,24 +73,13 @@ public class ClientSecurityConfig
    *
    * @param appAuthoritiesConverter The converter for application authorities.
    * @param loginSuccessHandler The handler for successful logins.
-   * @param appBaseUrl The base URL of the application, used in CSP.
    */
   public ClientSecurityConfig(
     AppAuthoritiesConverter appAuthoritiesConverter,
-    LoginSuccessHandler loginSuccessHandler,
-    @Value("${app.base-url}") String appBaseUrl
-  )
+    LoginSuccessHandler loginSuccessHandler )
   {
     this.appAuthoritiesConverter = appAuthoritiesConverter;
     this.loginSuccessHandler = loginSuccessHandler;
-    /*
-    this.CSP_POLICY = "default-src 'self'; "
-      + "manifest-src 'self'; "
-      + "connect-src 'self' https://idp.sonia.de; "
-      + "img-src 'self' data:;"
-      + "style-src 'self' 'unsafe-inline';"
-      + "script-src 'self' 'unsafe-inline';";
-    */
   }
 
   /**

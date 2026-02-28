@@ -105,9 +105,9 @@ public class VaultApiController
     {
       byte[] decryptedMasterKeyBytes = cipher.doFinal(cipherTextAndTag);
 
-      // KEY AN APP ÜBERGEBEN!
-      // SecretKey masterKey = new SecretKeySpec(decryptedMasterKeyBytes, "AES");
-      // appCryptoService.setUnlockedKey(masterKey);
+      SecretKey masterKey = new SecretKeySpec(decryptedMasterKeyBytes, "AES");
+      vaultService.setUnlockedKey(masterKey);
+
       log.info("Server unsealed by {} using {}",
         oidcUser.getPreferredUsername(), vaultAdminKey.description());
       log.debug("  - vault admin key = {}", vaultAdminKey);

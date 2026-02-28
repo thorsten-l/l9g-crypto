@@ -36,17 +36,32 @@ limitations under the License.
                 <div class="card-body p-4">
                   <div class="text-center mb-4">
                     <!-- FontAwesome Icon passend zu Ihrem Theme -->
-                    <i class="fa-solid fa-shield-halved text-primary mb-3" style="font-size: 4em;"></i>
-                    <p class="card-text text-muted">
+                    <i th:if="${!isUnsealed}" class="fa-solid fa-shield-halved text-primary mb-3" style="font-size: 4em;"></i>
+                    <i th:if="${isUnsealed}" class="fa-solid fa-lock-open text-success mb-3" style="font-size: 4em;"></i>
+                    
+                    <p th:if="${!isUnsealed}" class="card-text text-muted">
                       Der Vault ist aktuell versiegelt. Bitte authentifizieren Sie sich mit Ihrem hinterlegten YubiKey, um den Master-Schlüssel in den Speicher der Applikation zu laden.
+                    </p>
+                    <p th:if="${isUnsealed}" class="card-text text-success fw-bold fs-5">
+                      Der Server-Vault ist bereits entsperrt und der Master-Schlüssel ist aktiv geladen.
                     </p>
                   </div>
 
                   <div id="alertBox" class="alert d-none" role="alert"></div>
 
-                  <button id="unsealBtn" class="btn btn-primary btn-lg w-100 py-3 fw-bold" onclick="unsealServer()">
-                    <i class="fa-solid fa-key me-2"></i> Server mit YubiKey entsperren
-                  </button>
+                  <div class="d-grid gap-3">
+                    <button id="unsealBtn" class="btn btn-primary btn-lg py-3 fw-bold" 
+                            th:classappend="${isUnsealed} ? 'btn-success disabled' : ''"
+                            th:disabled="${isUnsealed}"
+                            onclick="unsealServer()">
+                      <i class="fa-solid fa-key me-2" th:classappend="${isUnsealed} ? 'fa-lock-open' : 'fa-key'"></i> 
+                      <span th:text="${isUnsealed} ? 'Vault ist bereits entsperrt' : 'Server mit YubiKey entsperren'"></span>
+                    </button>
+                    
+                    <a th:href="@{/admin}" class="btn btn-outline-secondary py-2">
+                      <i class="fa-solid fa-xmark me-2"></i> Zurück
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>

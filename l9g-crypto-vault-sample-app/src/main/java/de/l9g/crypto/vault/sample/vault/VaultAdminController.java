@@ -36,7 +36,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 @PreAuthorize("hasRole('ADMIN')")
 public class VaultAdminController
 {
-  private final VaultService masterkeyService;
+  private final VaultService vaultService;
   
   @GetMapping("/admin/vault/enrollment")
   public String enrollment(
@@ -46,7 +46,6 @@ public class VaultAdminController
     log.debug("enrollment principal={}", principal);
     Locale locale = LocaleContextHolder.getLocale();
     log.debug("locale={}", locale);
-    model.addAttribute("masterkey", masterkeyService.getSecret());
     model.addAttribute("principal", principal);
     model.addAttribute("locale", locale.toString());
     return "admin/enrollment";
@@ -60,6 +59,7 @@ public class VaultAdminController
     log.debug("enrollment principal={}", principal);
     Locale locale = LocaleContextHolder.getLocale();
     log.debug("locale={}", locale);
+    model.addAttribute("isUnsealed", ( vaultService.getUnlockedKey() != null ));
     model.addAttribute("principal", principal);
     model.addAttribute("locale", locale.toString());
     return "admin/unseal";

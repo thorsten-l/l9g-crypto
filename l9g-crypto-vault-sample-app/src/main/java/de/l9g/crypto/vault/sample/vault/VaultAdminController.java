@@ -56,6 +56,8 @@ public class VaultAdminController
 
     Locale locale = LocaleContextHolder.getLocale();
     log.debug("locale={}", locale);
+    model.addAttribute("unlockTimeLeft", vaultService.getUnlockTimeLeft()+1);
+    model.addAttribute("isUnsealed", (vaultService.getUnlockedKey() != null));
     model.addAttribute("principal", principal);
     model.addAttribute("locale", locale.toString());
     return "admin/enrollment";
@@ -76,6 +78,8 @@ public class VaultAdminController
 
     Locale locale = LocaleContextHolder.getLocale();
     log.debug("locale={}", locale);
+    model.addAttribute("unlockTimeLeft", vaultService.getUnlockTimeLeft()+1);
+    model.addAttribute("isUnsealed", (vaultService.getUnlockedKey() != null));
     model.addAttribute("principal", principal);
     model.addAttribute("locale", locale.toString());
     model.addAttribute("adminkeys", vaultService.findAllVaultAdminKeys());
@@ -90,6 +94,7 @@ public class VaultAdminController
     log.debug("enrollment principal={}", principal);
     Locale locale = LocaleContextHolder.getLocale();
     log.debug("locale={}", locale);
+    model.addAttribute("unlockTimeLeft", vaultService.getUnlockTimeLeft()+1);
     model.addAttribute("isUnsealed", (vaultService.getUnlockedKey() != null));
     model.addAttribute("principal", principal);
     model.addAttribute("locale", locale.toString());

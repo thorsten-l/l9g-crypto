@@ -109,6 +109,13 @@ public class VaultApiController
     return adminKeys;
   }
 
+  @GetMapping("/unlocktimeleft")
+  public long unlockTimeLeft(@AuthenticationPrincipal OidcUser principal)
+  {
+    // log.trace("principal={}", principal);
+    return vaultService.getUnlockTimeLeft();
+  }
+
   @PostMapping("/unseal")
   public void unsealServer(@RequestBody VaultUnsealRequest request,
     @AuthenticationPrincipal OidcUser oidcUser)

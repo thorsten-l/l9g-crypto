@@ -29,11 +29,14 @@ limitations under the License.
           <div class="row justify-content-center">
             <div class="col-md-8">
               <div class="card shadow">
-                <div class="card-header bg-danger text-white">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
                   <h3 class="card-title mb-0">
                     <i class="fa-solid fa-gears me-2"></i>
                     Administration
                   </h3>
+                  <div th:if="${isUnsealed}" id="unlockTimer" class="badge bg-light text-danger p-2 fs-6 shadow-sm">
+                    <i class="fa-solid fa-clock me-1"></i> <span id="timeLeft">--</span>s
+                  </div>
                 </div>
                 <div class="card-body p-4">
                   <div class="d-grid gap-3">
@@ -55,21 +58,23 @@ limitations under the License.
                         <span class="fw-bold">Manage Admin Keys</span>
                         <div class="small text-muted ms-5">Registrierte Hardware-Keys bearbeiten</div>
                       </a>
-                    <div th:if="${isUnsealed}" th:remove="tag">
-                      <a th:href="@{/supersecret}" class="btn btn-outline-success btn-lg text-start p-3 text-dark">
-                        <i class="fa-solid fa-key me-3 fa-fw"></i>
-                        <span class="fw-bold">Supersecret</span>
-                        <div class="small text-muted ms-5">Zeige den Masterkey als Base64 codiert.</div>
-                      </a>
+                      <div th:if="${isUnsealed}" th:remove="tag">
+                        <a th:href="@{/supersecret}" class="btn btn-outline-success btn-lg text-start p-3 text-dark">
+                          <i class="fa-solid fa-key me-3 fa-fw"></i>
+                          <span class="fw-bold">Supersecret</span>
+                          <div class="small text-muted ms-5">Zeige den Masterkey als Base64 codiert.</div>
+                        </a>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
       </main>
     </div>
-    <script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+
+    <div th:replace="~{footer::footer}"></div>
+
   </body>
 </html>

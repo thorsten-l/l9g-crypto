@@ -107,6 +107,13 @@ public class VaultService
     return adminKeys.isEmpty();
   }
 
+  public long getUnlockTimeLeft()
+  {
+    long timeLeft = (masterkeyTTL + masterKeyTimestamp 
+      - System.currentTimeMillis()) / 1000;
+    return (timeLeft > 0 ) ? timeLeft : 0;
+  }
+  
   public synchronized SecretKey getUnlockedKey()
   {
     if(masterkeyTTL > 0

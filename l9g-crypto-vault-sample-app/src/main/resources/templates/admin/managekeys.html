@@ -29,11 +29,14 @@ limitations under the License.
           <div class="row justify-content-center">
             <div class="col-md-8">
               <div class="card shadow">
-                <div class="card-header bg-danger text-white">
+                <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
                   <h3 class="card-title mb-0">
-                    <i class="fa-solid fa-keys me-2"></i>
+                    <i class="fa-solid fa-gears me-2"></i>
                     Manage Admin Keys
                   </h3>
+                  <div th:if="${isUnsealed}" id="unlockTimer" class="badge bg-light text-danger p-2 fs-6 shadow-sm">
+                    <i class="fa-solid fa-clock me-1"></i> <span id="timeLeft">--</span>s
+                  </div>
                 </div>
                 <div class="card-body p-0">
                   <div class="table-responsive">
@@ -80,7 +83,7 @@ limitations under the License.
       </main>
     </div>
     
-    <script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+    <div th:replace="~{footer::footer}"></div>
 
     <script>
       async function deleteKey(credentialId, fullName) {

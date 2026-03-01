@@ -63,6 +63,7 @@ public class AdminController
     log.debug("locale={}", locale);
     model.addAttribute("locale", locale.toString());
     model.addAttribute("principal", principal);
+    model.addAttribute("unlockTimeLeft", vaultService.getUnlockTimeLeft()+1);
     model.addAttribute("adminKeysIsEmpty", vaultService.adminKeysIsEmpty());
     model.addAttribute("isUnsealed", (vaultService.getUnlockedKey() != null));
     return "admin/home";

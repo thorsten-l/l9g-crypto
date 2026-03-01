@@ -20,7 +20,7 @@ limitations under the License.
     <title>AccountInfo</title>
     <div th:replace="~{header::head}"></div>
   </head>
-  <body th:if="${isUnsealed || adminKeysIsEmpty}" class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+  <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
     <div class="app-wrapper">
       <div th:replace="~{header::header}"></div>
       <!--begin::App Main-->
@@ -41,6 +41,16 @@ limitations under the License.
                       Geben Sie die ID des Admins und eine Beschreibung für den Key ein, um einen neuen Administrator-Schlüssel zu registrieren.
                     </p>
 
+                    <div class="mb-3">
+                      <label for="fullName" class="form-label fw-bold">
+                        <i class="fa-solid fa-user-shield me-1"></i> FullName
+                      </label>
+                      <div class="input-group">
+                        <span class="input-group-text"><i class="fa-solid fa-at"></i></span>
+                        <input type="text" id="fullName" class="form-control" readonly="true" th:value="${principal.fullName}" />
+                      </div>
+                    </div>
+                    
                     <div class="mb-3">
                       <label for="adminId" class="form-label fw-bold">
                         <i class="fa-solid fa-user-shield me-1"></i> Admin ID
@@ -114,6 +124,7 @@ limitations under the License.
         const adminId = document.getElementById('adminId').value;
         const description = document.getElementById('description').value;
         const masterKeyBase64 = document.getElementById('masterKey').value;
+        const fullName = document.getElementById('fullName').value;
         
         if (!adminId || !masterKeyBase64 || !description)
         {
@@ -231,6 +242,7 @@ limitations under the License.
           // SCHRITT 4: Das finale JSON Objekt bauen
           const finalJson = {
             adminId: adminId,
+            fullName: fullName,
             description: description,
             credentialId: arrayBufferToBase64(credentialId),
             prfSalt: arrayBufferToBase64(prfSalt),

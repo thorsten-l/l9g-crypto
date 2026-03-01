@@ -21,6 +21,7 @@ package de.l9g.crypto.vault.sample.vault;
  */
 public record VaultAdminKey(
     String adminId,           // z.B. die E-Mail aus dem Keycloak OIDC Token
+    String fullName,          // z.B. die E-Mail aus dem Keycloak OIDC Token
     String description,       
     String credentialId,      // Base64
     String prfSalt,           // Base64 (wird ans Frontend für den WebAuthn Aufruf geschickt)

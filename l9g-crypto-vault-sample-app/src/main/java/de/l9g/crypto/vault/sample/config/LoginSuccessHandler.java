@@ -70,6 +70,21 @@ public class LoginSuccessHandler implements AuthenticationSuccessHandler
     log.debug("sid={}, session id={}", sid, session.getId());
     // sessionStore.put(sid, session);
     log.info("LOGIN: {}, {}", session.getId(), user.getName());
+    
+    /*
+    log.debug("--- Request Headers ---");
+    java.util.Enumeration<String> headerNames = request.getHeaderNames();
+    if (headerNames != null)
+    {
+      while (headerNames.hasMoreElements())
+      {
+        String name = headerNames.nextElement();
+        log.debug("{}: {}", name, request.getHeader(name));
+      }
+    }
+    log.debug("-----------------------");
+    */
+    
     response.sendRedirect("/app");
   }
 

@@ -37,6 +37,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 /**
  *
@@ -57,6 +59,15 @@ public class VaultApiController
     @RequestBody VaultAdminKey vaultAdminKey)
   {
     log.debug("principal = {}", principal);
+
+    boolean isUnsealed = (vaultService.getUnlockedKey() != null);
+    boolean adminKeysIsEmpty = vaultService.adminKeysIsEmpty();
+
+    if (!isUnsealed && !adminKeysIsEmpty)
+    {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment not allowed when vault is sealed and keys already exist.");
+    }
+
     log.trace("vaultAdminKey = {}", vaultAdminKey);
     vaultService.addVaultAdminKey(vaultAdminKey);
     return ResponseEntity.ok("OK");

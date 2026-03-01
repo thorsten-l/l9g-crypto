@@ -25,6 +25,8 @@ import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
 
 /**
  *
@@ -44,12 +46,18 @@ public class VaultAdminController
     @AuthenticationPrincipal DefaultOidcUser principal)
   {
     log.debug("enrollment principal={}", principal);
+
+    if ( vaultService.getUnlockedKey() == null 
+      && !vaultService.adminKeysIsEmpty())
+    {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, 
+        "Enrollment not allowed when vault is sealed and keys already exist.");
+    }
+    
     Locale locale = LocaleContextHolder.getLocale();
     log.debug("locale={}", locale);
     model.addAttribute("principal", principal);
     model.addAttribute("locale", locale.toString());
-    model.addAttribute("adminKeysIsEmpty", vaultService.adminKeysIsEmpty());
-    model.addAttribute("isUnsealed", (vaultService.getUnlockedKey() != null));
     return "admin/enrollment";
   }
   

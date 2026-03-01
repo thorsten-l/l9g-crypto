@@ -253,7 +253,7 @@ limitations under the License.
           const csrfToken = document.querySelector('meta[name="_csrf"]').content;
           const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
 
-          const response = await fetch('/api/v1/admin/vault/addadminkey', {
+          const response = await fetch('/api/v1/admin/vault/adminkey', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

@@ -108,25 +108,27 @@ public class ClientSecurityConfig
           "/favicon**"
         )
         .permitAll()
-        .requestMatchers("/supersecret/**").access((authentication, context) ->
-      {
-        boolean hasAdminRole = authentication.get().getAuthorities().stream()
-          .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-        boolean isUnsealed = vaultService.getUnlockedKey() != null;
-        return new AuthorizationDecision(hasAdminRole && isUnsealed);
-      })
-        .requestMatchers(
-          "/admin/vault/enrollment", "/api/v1/admin/vault/addadminkey")
+        .requestMatchers("/admin/vault/managekeys", 
+          "/supersecret", "/supersecret/**")
         .access((authentication, context) ->
-      {
-        boolean hasAdminRole = authentication.get().getAuthorities().stream()
-          .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-        boolean isUnsealed = vaultService.getUnlockedKey() != null;
-        boolean noKeysExist = vaultService.adminKeysIsEmpty();
-        return new AuthorizationDecision(
-          hasAdminRole && (isUnsealed || noKeysExist));
-      })
-        .requestMatchers("/admin", "/admin/**", "/api/v1/admin", 
+        {
+          boolean hasAdminRole = authentication.get().getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+          boolean isUnsealed = vaultService.getUnlockedKey() != null;
+          return new AuthorizationDecision(hasAdminRole && isUnsealed);
+        })
+        .requestMatchers(
+          "/admin/vault/enrollment", "/api/v1/admin/vault/adminkey")
+        .access((authentication, context) ->
+        {
+          boolean hasAdminRole = authentication.get().getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+          boolean isUnsealed = vaultService.getUnlockedKey() != null;
+          boolean noKeysExist = vaultService.adminKeysIsEmpty();
+          return new AuthorizationDecision(
+            hasAdminRole && (isUnsealed || noKeysExist));
+        })
+        .requestMatchers("/admin", "/admin/**", "/api/v1/admin",
           "/api/v1/admin/**", "/v3/api-docs")
         .hasRole("ADMIN")
         .requestMatchers("/app", "/app/**")

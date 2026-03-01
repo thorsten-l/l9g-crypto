@@ -20,10 +20,22 @@ package de.l9g.crypto.vault.sample.vault;
  * @author Thorsten Ludewig (t.ludewig@gmail.com)
  */
 public record VaultAdminKey(
-    String adminId,           // z.B. die E-Mail aus dem Keycloak OIDC Token
-    String fullName,          // z.B. die E-Mail aus dem Keycloak OIDC Token
-    String description,       
-    String credentialId,      // Base64
-    String prfSalt,           // Base64 (wird ans Frontend für den WebAuthn Aufruf geschickt)
-    String encryptedMasterKey // Base64 (wird im Backend nach dem WebAuthn Aufruf entschlüsselt)
-) {}
+  String adminId, // z.B. die E-Mail aus dem Keycloak OIDC Token
+  String fullName, // z.B. die E-Mail aus dem Keycloak OIDC Token
+  String description,
+  String credentialId, // Base64
+  String prfSalt, // Base64 (wird ans Frontend für den WebAuthn Aufruf geschickt)
+  String encryptedMasterKey // Base64 (wird im Backend nach dem WebAuthn Aufruf entschlüsselt)
+  )
+  {
+
+  public VaultAdminKey(
+    String adminId,
+    String fullName,
+    String description,
+    String credentialId)
+  {
+    this(adminId, fullName, description, credentialId, null, null);
+  }
+
+}

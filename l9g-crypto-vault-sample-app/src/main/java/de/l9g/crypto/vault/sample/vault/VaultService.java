@@ -47,7 +47,7 @@ public class VaultService
   public VaultService(@Value("${app.vault.masterkey-ttl}") long masterkeyTTL)
   {
     this.masterkeyTTL = masterkeyTTL;
-    log.debug("masterKeyTTL={}",masterkeyTTL);
+    log.debug("masterKeyTTL={}", masterkeyTTL);
     ObjectMapper mapper = new ObjectMapper();
 
     try
@@ -71,16 +71,7 @@ public class VaultService
   public synchronized void addVaultAdminKey(VaultAdminKey key)
   {
     adminKeys.add(key);
-    ObjectMapper mapper = new ObjectMapper();
-    try
-    {
-      mapper.writerWithDefaultPrettyPrinter().writeValue(new File(ADMINKEYS_FILENAME), adminKeys);
-      log.info("VaultAdminKey added and saved to {}", ADMINKEYS_FILENAME);
-    }
-    catch(IOException e)
-    {
-      log.error("Failed to save admin keys", e);
-    }
+    saveAdminKeys();
   }
 
   public synchronized List<VaultAdminKey> findVaultAdminKeysByAdminId(String adminId)
@@ -96,11 +87,26 @@ public class VaultService
     return resultList;
   }
 
+  public synchronized List<VaultAdminKey> findAllVaultAdminKeys()
+  {
+    final List<VaultAdminKey> resultList = new ArrayList<>();
+    adminKeys.forEach(key ->
+    {
+      resultList.add(new VaultAdminKey(
+        key.adminId(),
+        key.fullName(),
+        key.description(),
+        key.credentialId()
+      ));
+    });
+    return resultList;
+  }
+
   public synchronized boolean adminKeysIsEmpty()
   {
     return adminKeys.isEmpty();
   }
-  
+
   public synchronized SecretKey getUnlockedKey()
   {
     if(masterkeyTTL > 0
@@ -115,6 +121,33 @@ public class VaultService
   {
     this.masterKey = masterKey;
     this.masterKeyTimestamp = System.currentTimeMillis();
+  }
+
+  public synchronized void removeVaultAdminKeyByCredentialId(String credentialId)
+  {
+    if(adminKeys.removeIf(key -> key.credentialId().equals(credentialId)))
+    {
+      log.info("VaultAdminKey with credentialId {} removed.", credentialId);
+      saveAdminKeys();
+    }
+    else
+    {
+      log.warn("VaultAdminKey with credentialId {} not found for removal.", credentialId);
+    }
+  }
+
+  private synchronized void saveAdminKeys()
+  {
+    ObjectMapper mapper = new ObjectMapper();
+    try
+    {
+      mapper.writerWithDefaultPrettyPrinter().writeValue(new File(ADMINKEYS_FILENAME), adminKeys);
+      log.info("VaultAdminKey added and saved to {}", ADMINKEYS_FILENAME);
+    }
+    catch(IOException e)
+    {
+      log.error("Failed to save admin keys", e);
+    }
   }
 
 }

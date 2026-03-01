@@ -39,6 +39,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  *
@@ -53,7 +55,7 @@ public class VaultApiController
 {
   private final VaultService vaultService;
 
-  @PostMapping(path = "/addadminkey", produces = MediaType.TEXT_PLAIN_VALUE)
+  @PostMapping(path = "/adminkey", produces = MediaType.TEXT_PLAIN_VALUE)
   ResponseEntity<String> addAdminkey(
     @AuthenticationPrincipal DefaultOidcUser principal,
     @RequestBody VaultAdminKey vaultAdminKey)
@@ -63,13 +65,32 @@ public class VaultApiController
     boolean isUnsealed = (vaultService.getUnlockedKey() != null);
     boolean adminKeysIsEmpty = vaultService.adminKeysIsEmpty();
 
-    if (!isUnsealed && !adminKeysIsEmpty)
+    if( ! isUnsealed &&  ! adminKeysIsEmpty)
     {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Enrollment not allowed when vault is sealed and keys already exist.");
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+        "Enrollment not allowed when vault is sealed and keys already exist.");
     }
 
     log.trace("vaultAdminKey = {}", vaultAdminKey);
     vaultService.addVaultAdminKey(vaultAdminKey);
+    return ResponseEntity.ok("OK");
+  }
+
+  @DeleteMapping(path = "/adminkey", produces = MediaType.TEXT_PLAIN_VALUE)
+  ResponseEntity<String> deleteAdminkey(
+    @RequestParam(name = "id", required = true) String credentialId,
+    @AuthenticationPrincipal DefaultOidcUser principal)
+  {
+    log.debug("principal = {}", principal);
+    log.debug("credentialId = {}", credentialId);
+
+    if(vaultService.getUnlockedKey() == null)
+    {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+        "Remove admin key not allowed when vault is sealed.");
+    }
+
+    vaultService.removeVaultAdminKeyByCredentialId(credentialId);
     return ResponseEntity.ok("OK");
   }
 

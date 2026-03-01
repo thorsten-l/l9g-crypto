@@ -39,7 +39,7 @@ import org.springframework.http.HttpStatus;
 public class VaultAdminController
 {
   private final VaultService vaultService;
-  
+
   @GetMapping("/admin/vault/enrollment")
   public String enrollment(
     Model model,
@@ -47,20 +47,41 @@ public class VaultAdminController
   {
     log.debug("enrollment principal={}", principal);
 
-    if ( vaultService.getUnlockedKey() == null 
-      && !vaultService.adminKeysIsEmpty())
+    if(vaultService.getUnlockedKey() == null
+      &&  ! vaultService.adminKeysIsEmpty())
     {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, 
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN,
         "Enrollment not allowed when vault is sealed and keys already exist.");
     }
-    
+
     Locale locale = LocaleContextHolder.getLocale();
     log.debug("locale={}", locale);
     model.addAttribute("principal", principal);
     model.addAttribute("locale", locale.toString());
     return "admin/enrollment";
   }
-  
+
+  @GetMapping("/admin/vault/managekeys")
+  public String managekeys(
+    Model model,
+    @AuthenticationPrincipal DefaultOidcUser principal)
+  {
+    log.debug("enrollment principal={}", principal);
+
+    if(vaultService.getUnlockedKey() == null)
+    {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+        "Manage keys not allowed when vault is sealed.");
+    }
+
+    Locale locale = LocaleContextHolder.getLocale();
+    log.debug("locale={}", locale);
+    model.addAttribute("principal", principal);
+    model.addAttribute("locale", locale.toString());
+    model.addAttribute("adminkeys", vaultService.findAllVaultAdminKeys());
+    return "admin/managekeys";
+  }
+
   @GetMapping("/admin/vault/unseal")
   public String unseal(
     Model model,
@@ -69,7 +90,7 @@ public class VaultAdminController
     log.debug("enrollment principal={}", principal);
     Locale locale = LocaleContextHolder.getLocale();
     log.debug("locale={}", locale);
-    model.addAttribute("isUnsealed", ( vaultService.getUnlockedKey() != null ));
+    model.addAttribute("isUnsealed", (vaultService.getUnlockedKey() != null));
     model.addAttribute("principal", principal);
     model.addAttribute("locale", locale.toString());
     return "admin/unseal";

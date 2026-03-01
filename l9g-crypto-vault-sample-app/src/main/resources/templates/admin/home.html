@@ -50,6 +50,12 @@ limitations under the License.
                       <div class="small text-muted ms-5">Entsperre den Server-Vault mit einem YubiKey.</div>
                     </a>
                     <div th:if="${isUnsealed}" th:remove="tag">
+                      <a th:href="@{/admin/vault/managekeys}" class="btn btn-outline-warning btn-lg text-start p-3 text-dark">
+                        <i class="fa-solid fa-key me-3 fa-fw"></i>
+                        <span class="fw-bold">Manage Admin Keys</span>
+                        <div class="small text-muted ms-5">Registrierte Hardware-Keys bearbeiten</div>
+                      </a>
+                    <div th:if="${isUnsealed}" th:remove="tag">
                       <a th:href="@{/supersecret}" class="btn btn-outline-success btn-lg text-start p-3 text-dark">
                         <i class="fa-solid fa-key me-3 fa-fw"></i>
                         <span class="fw-bold">Supersecret</span>

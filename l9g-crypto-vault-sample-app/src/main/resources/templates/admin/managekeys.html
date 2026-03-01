@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<!--
+Copyright 2025 Thorsten Ludewig (t.ludewig@gmail.com).
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <title>AccountInfo</title>
+    <div th:replace="~{header::head}"></div>
+  </head>
+  <body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
+    <div class="app-wrapper">
+      <div th:replace="~{header::header}"></div>
+      <!--begin::App Main-->
+      <main class="app-main">
+        <div class="container mt-5">
+          <div class="row justify-content-center">
+            <div class="col-md-8">
+              <div class="card shadow">
+                <div class="card-header bg-danger text-white">
+                  <h3 class="card-title mb-0">
+                    <i class="fa-solid fa-keys me-2"></i>
+                    Manage Admin Keys
+                  </h3>
+                </div>
+                <div class="card-body p-0">
+                  <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                      <thead class="table-light">
+                        <tr>
+                          <th class="ps-4">Name</th>
+                          <th>Admin ID</th>
+                          <th>Beschreibung</th>
+                          <th class="text-center pe-4">Aktion</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr th:each="key : ${adminkeys}">
+                          <td class="ps-4 fw-bold" th:text="${key.fullName}">Max Mustermann</td>
+                          <td th:text="${key.adminId}">max@firma.de</td>
+                          <td th:text="${key.description}">YubiKey 5C</td>
+                          <td class="text-center pe-4">
+                            <button class="btn btn-outline-danger btn-sm border-0" 
+                                    th:onclick="deleteKey([[${key.credentialId}]], [[${key.fullName}]])">
+                              <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                          </td>
+                        </tr>
+                        <tr th:if="${#lists.isEmpty(adminkeys)}">
+                          <td colspan="4" class="text-center py-4 text-muted">
+                            <i class="fa-solid fa-inbox me-2"></i>
+                            Keine Admin-Keys registriert.
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="card-footer bg-light text-end py-3">
+                  <a th:href="@{/admin}" class="btn btn-outline-secondary">
+                    <i class="fa-solid fa-arrow-left me-2"></i> Zurück
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+    
+    <script th:src="@{/webjars/bootstrap/js/bootstrap.bundle.min.js}"></script>
+
+    <script>
+      async function deleteKey(credentialId, fullName) {
+        if (confirm(`Möchten Sie den Schlüssel von "${fullName}" wirklich unwiderruflich löschen?`)) {
+          try {
+            const csrfToken = document.querySelector('meta[name="_csrf"]').content;
+            const csrfHeader = document.querySelector('meta[name="_csrf_header"]').content;
+
+            const response = await fetch(`/api/v1/admin/vault/adminkey?id=${encodeURIComponent(credentialId)}`, {
+              method: 'DELETE',
+              headers: {
+                [csrfHeader]: csrfToken
+              }
+            });
+
+            if (response.ok) {
+              window.location.reload();
+            } else {
+              const errorText = await response.text();
+              alert("Fehler beim Löschen: " + (errorText || response.statusText));
+            }
+          } catch (error) {
+            console.error("Löschvorgang fehlgeschlagen:", error);
+            alert("Ein Fehler ist aufgetreten: " + error.message);
+          }
+        }
+      }
+    </script>
+  </body>
+</html>

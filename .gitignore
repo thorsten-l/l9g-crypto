@@ -6,6 +6,7 @@ server.p12
 nb-configuration.xml
 nbactions.xml
 GEMINI.md
+CLAUDE.md
 secrets
 secret.bin
 l9g-crypto-tool/data/

@@ -66,8 +66,14 @@ public class SupersecretController
     model.addAttribute("locale", locale.toString());
     model.addAttribute("principal", principal);
     model.addAttribute("vault", vaultService);
-    model.addAttribute("masterkey", Base64.getEncoder().encodeToString( 
-      vaultService.getUnlockedKey().getEncoded()));
+    var unlockedKey = vaultService.getUnlockedKey();
+    if(unlockedKey == null)
+    {
+      log.warn("Vault is sealed, denying access to secret home");
+      return "redirect:/";
+    }
+    model.addAttribute("masterkey", Base64.getEncoder().encodeToString(
+      unlockedKey.getEncoded()));
     return "secret/home";
   }
 }

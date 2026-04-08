@@ -138,7 +138,7 @@ public class ClientSecurityConfig
     )
       .headers(
         headers -> headers
-          .frameOptions(frameOptions -> frameOptions.disable())
+          .frameOptions(frameOptions -> frameOptions.sameOrigin())
       )
       .oauth2Login(
         login -> login
@@ -157,9 +157,10 @@ public class ClientSecurityConfig
           .logoutSuccessHandler(
             oidcLogoutSuccessHandler(clientRegistrationRepository))
       )
-      // permit even POST, PUT and DELETE requests
-      .csrf(csrf -> csrf.ignoringRequestMatchers(
-      "/oidc-backchannel-logout"));
+      // OIDC Back-Channel Logout (RFC 9700) requires the IdP to POST without a
+      // browser session, so no CSRF token is available. The endpoint validates
+      // the signed logout token instead — CSRF exemption is intentional here.
+      .csrf(csrf -> csrf.ignoringRequestMatchers("/oidc-backchannel-logout"));
 
     return http.build();
   }
@@ -241,7 +242,7 @@ public class ClientSecurityConfig
         {
           authorities.stream()
             .map(GrantedAuthority :: getAuthority)
-            .forEach(System.out :: println);
+            .forEach(authority -> log.debug("authority: {}", authority));
         }
 
         return new DefaultOidcUser(

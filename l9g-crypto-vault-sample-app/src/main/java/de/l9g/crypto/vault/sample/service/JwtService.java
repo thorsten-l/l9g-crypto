@@ -17,6 +17,7 @@ package de.l9g.crypto.vault.sample.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.Signature;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
@@ -26,9 +27,12 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -66,6 +70,12 @@ public class JwtService
    */
   @Setter
   private JwksCerts oauth2JwksCerts;
+
+  /**
+   * OAuth2 client secret used as the HMAC key for HS512 signature validation.
+   */
+  @Value("${spring.security.oauth2.client.registration.app.client-secret}")
+  private String clientSecret;
 
   /**
    * Splits a JWT token string into its three constituent parts: header, payload, and signature.
@@ -162,8 +172,7 @@ public class JwtService
     }
     catch(Throwable t)
     {
-      log.error("ERROR: {}", t.getMessage());
-      t.printStackTrace();
+      log.error("ERROR: {}", t.getMessage(), t);
       return false;
     }
   }
@@ -233,26 +242,41 @@ public class JwtService
     }
     catch(Throwable t)
     {
-      log.error("ERROR in RS256 validation: {}", t.getMessage());
-      t.printStackTrace();
+      log.error("ERROR in RS256 validation: {}", t.getMessage(), t);
       return false;
     }
   }
 
   /**
-   * Validates the HS512 signature of a JWT token.
-   * <p>
-   * NOTE: This method is currently a placeholder and always returns {@code true}.
-   * Proper implementation for HS512 signature validation would require a shared secret key.
+   * Validates the HS512 (HMAC-SHA512) signature of a JWT token using the
+   * configured OAuth2 client secret as the HMAC key.
+   * Uses a constant-time comparison to prevent timing attacks.
    *
    * @param jwt The JWT string to validate.
    *
-   * @return Always {@code true} as this is a placeholder implementation.
+   * @return {@code true} if the signature is valid, {@code false} otherwise.
    */
   private boolean validateHs512Signature(String jwt)
   {
-    // TODO: implement
-    return true;
+    try
+    {
+      String[] parts = splitJwt(jwt);
+      String signingInput = parts[0] + "." + parts[1];
+      byte[] signatureBytes = Base64.getUrlDecoder().decode(parts[2]);
+
+      Mac mac = Mac.getInstance("HmacSHA512");
+      mac.init(new SecretKeySpec(
+        clientSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA512"));
+      byte[] expectedSignature = mac.doFinal(
+        signingInput.getBytes(StandardCharsets.UTF_8));
+
+      return MessageDigest.isEqual(expectedSignature, signatureBytes);
+    }
+    catch(Throwable t)
+    {
+      log.error("ERROR in HS512 validation: {}", t.getMessage(), t);
+      return false;
+    }
   }
 
 }

@@ -5,7 +5,7 @@
   <parent>
     <groupId>de.l9g</groupId>
     <artifactId>crypto-parent</artifactId>
-    <version>1.0.3</version>
+    <version>1.0.4-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
 
@@ -19,6 +19,9 @@
     <build.profile>default</build.profile>
     <exec.inheritIo>true</exec.inheritIo>
     <maven.deploy.skip>true</maven.deploy.skip>
+    <gpg.skip>true</gpg.skip>
+    <central.publishing.skip>true</central.publishing.skip>
+    <sonatype.central.skip>true</sonatype.central.skip>
     <main.class>de.l9g.crypto.tool.Application</main.class>
   </properties>
 
@@ -119,28 +122,23 @@
           </excludes>
         </configuration>
       </plugin>
-
+           
       <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-deploy-plugin</artifactId>
-        <version>3.1.4</version>
+        <groupId>org.sonatype.central</groupId>
+        <artifactId>central-publishing-maven-plugin</artifactId>
+        <version>0.10.0</version>
+        <extensions>false</extensions>
+        <executions>
+          <execution>
+            <id>injected-central-publishing</id>
+            <phase>none</phase>
+          </execution>
+        </executions>
         <configuration>
           <skip>true</skip>
         </configuration>
       </plugin>
 
-      <plugin>
-        <groupId>org.sonatype.central</groupId>
-        <artifactId>central-publishing-maven-plugin</artifactId>
-        <version>0.10.0</version>
-        <configuration>
-          <publish>false</publish>
-          <excludeArtifacts>
-            <artifact>crypto-tool</artifact>
-          </excludeArtifacts>
-        </configuration>
-      </plugin>
-      
     </plugins>
   </build>
 

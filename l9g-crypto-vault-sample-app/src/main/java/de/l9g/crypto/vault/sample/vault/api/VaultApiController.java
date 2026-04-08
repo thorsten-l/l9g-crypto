@@ -20,6 +20,7 @@ import de.l9g.crypto.vault.sample.vault.VaultService;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.regex.Pattern;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
@@ -53,6 +54,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 @PreAuthorize("hasRole('ADMIN')")
 public class VaultApiController
 {
+  // Allows standard Base64 (+/=) and Base64url (_-) characters as used by WebAuthn
+  private static final Pattern CREDENTIAL_ID_PATTERN =
+    Pattern.compile("^[A-Za-z0-9+/_=\\-]+$");
+
   private final VaultService vaultService;
 
   @PostMapping(path = "/adminkey", produces = MediaType.TEXT_PLAIN_VALUE)
@@ -82,7 +87,13 @@ public class VaultApiController
     @AuthenticationPrincipal DefaultOidcUser principal)
   {
     log.debug("principal = {}", principal);
-    log.debug("credentialId = {}", credentialId);
+
+    if(credentialId.isBlank() || credentialId.length() > 2048
+      || !CREDENTIAL_ID_PATTERN.matcher(credentialId).matches())
+    {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+        "Invalid credentialId format.");
+    }
 
     if(vaultService.getUnlockedKey() == null)
     {
@@ -90,6 +101,19 @@ public class VaultApiController
         "Remove admin key not allowed when vault is sealed.");
     }
 
+    boolean isOwner = vaultService
+      .findVaultAdminKeysByAdminId(principal.getPreferredUsername())
+      .stream()
+      .anyMatch(k -> k.credentialId().equals(credentialId));
+
+    if(!isOwner)
+    {
+      log.warn("Admin '{}' attempted to delete credential '{}' which does not belong to them",
+        principal.getPreferredUsername(), credentialId);
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied.");
+    }
+
+    log.debug("credentialId = {}", credentialId);
     vaultService.removeVaultAdminKeyByCredentialId(credentialId);
     return ResponseEntity.ok("OK");
   }
@@ -104,7 +128,8 @@ public class VaultApiController
 
     if(adminKeys.isEmpty())
     {
-      throw new RuntimeException("Keine YubiKeys für diesen Admin hinterlegt!");
+      log.warn("No YubiKeys registered for admin '{}'", oidcUser.getPreferredUsername());
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No keys found.");
     }
     return adminKeys;
   }
@@ -125,8 +150,12 @@ public class VaultApiController
       oidcUser.getPreferredUsername()).stream()
       .filter(c -> c.credentialId().equals(request.usedCredentialId()))
       .findFirst()
-      .orElseThrow(() -> new RuntimeException(
-      "Unbekannter oder nicht berechtigter YubiKey!"));
+      .orElseThrow(() ->
+      {
+        log.warn("Unseal attempt by '{}' with unknown credentialId '{}'",
+          oidcUser.getPreferredUsername(), request.usedCredentialId());
+        return new ResponseStatusException(HttpStatus.FORBIDDEN, "Authentication failed.");
+      });
 
     byte[] prfOutputKek = Base64.getDecoder().decode(request.prfOutput());
     byte[] encryptedPayload = Base64.getDecoder().decode(
@@ -155,8 +184,9 @@ public class VaultApiController
     }
     catch(Exception e)
     {
-      throw new RuntimeException(
-        "Entschlüsselung fehlgeschlagen. Falscher YubiKey?", e);
+      log.warn("Unseal decryption failed for admin '{}': {}",
+        oidcUser.getPreferredUsername(), e.getMessage());
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Authentication failed.");
     }
     finally
     {

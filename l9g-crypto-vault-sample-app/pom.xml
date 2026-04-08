@@ -12,16 +12,20 @@
   
   <groupId>de.l9g</groupId>
   <artifactId>crypto-vault-sample-app</artifactId>
-  <version>1.0.3</version>
+  <version>1.0.4-SNAPSHOT</version>
   <name>L9G Crypto Vault Sample Web Application</name>
   <description>L9G Crypto Vault Sample Web Application</description>
   
   <properties>
     <java.version>17</java.version>
-    <l9g.crypto.version>1.0.3-SNAPSHOT</l9g.crypto.version>
+    <l9g.crypto.version>1.0.4-SNAPSHOT</l9g.crypto.version>
     <build.profile>default</build.profile>
     <exec.inheritIo>true</exec.inheritIo>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.deploy.skip>true</maven.deploy.skip>
+    <gpg.skip>true</gpg.skip>
+    <central.publishing.skip>true</central.publishing.skip>
+    <sonatype.central.skip>true</sonatype.central.skip>
     <start-class>de.l9g.crypto.vault.sample.Application</start-class>
   </properties>
   
@@ -160,6 +164,23 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      
+      <plugin>
+        <groupId>org.sonatype.central</groupId>
+        <artifactId>central-publishing-maven-plugin</artifactId>
+        <version>0.10.0</version>
+        <extensions>false</extensions>
+        <executions>
+          <execution>
+            <id>injected-central-publishing</id>
+            <phase>none</phase>
+          </execution>
+        </executions>
+        <configuration>
+          <skip>true</skip>
+          <publishingServerId>ossrh</publishingServerId>
+        </configuration>
       </plugin>
       
     </plugins>

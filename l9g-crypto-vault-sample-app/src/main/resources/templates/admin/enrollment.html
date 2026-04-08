@@ -188,13 +188,6 @@ limitations under the License.
           {
             // SCHRITT 2: Fallback! Wir müssen einen GET-Aufruf machen, um das Secret zu bekommen.
             console.log("Mache Fallback GET-Aufruf für PRF Secret...");
-
-            // Wir informieren den User ganz kurz, falls der Chrome-Dialog nicht sofort offensichtlich ist
-            /* setTimeout(() => {
-              if (!prfOutputKek)
-                alert("Bitte berühren Sie den YubiKey noch ein zweites Mal, um das kryptographische Geheimnis final zu erzeugen!");
-            }, 500);
-            */
            
             const assertion = await navigator.credentials.get({
               publicKey: {

@@ -52,7 +52,7 @@ public class LocaleWebConfig implements WebMvcConfigurer
   @Bean
   public LocaleResolver localeResolver()
   {
-    Locale locale = Locale.of(defaultLocale);
+    Locale locale = new Locale(defaultLocale);
     log.debug("set default locale to {}", locale);
     CookieLocaleResolver resolver = new CookieLocaleResolver();
     resolver.setDefaultLocale(locale);

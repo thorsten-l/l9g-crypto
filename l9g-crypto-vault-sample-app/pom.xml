@@ -6,20 +6,19 @@
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>3.5.11</version>
+    <version>3.5.13</version>
     <relativePath/> <!-- lookup parent from repository -->
   </parent>
   
   <groupId>de.l9g</groupId>
   <artifactId>crypto-vault-sample-app</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>1.0.3-SNAPSHOT</version>
   <name>L9G Crypto Vault Sample Web Application</name>
   <description>L9G Crypto Vault Sample Web Application</description>
-
   
   <properties>
-    <java.version>21</java.version>
-    <l9g.crypto.version>1.0.2</l9g.crypto.version>
+    <java.version>17</java.version>
+    <l9g.crypto.version>1.0.3-SNAPSHOT</l9g.crypto.version>
     <build.profile>default</build.profile>
     <exec.inheritIo>true</exec.inheritIo>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -67,7 +66,7 @@
     <dependency>
       <groupId>org.webjars</groupId>
       <artifactId>font-awesome</artifactId>
-      <version>7.1.0</version>
+      <version>7.2.0</version>
     </dependency>
 
     <!-- L9G Crypto -->
@@ -99,7 +98,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-resources-plugin</artifactId>
-        <version>3.4.0</version>
+        <version>3.5.0</version>
         <configuration>
           <encoding>${project.build.sourceEncoding}</encoding>
           <useDefaultDelimiters>false</useDefaultDelimiters>

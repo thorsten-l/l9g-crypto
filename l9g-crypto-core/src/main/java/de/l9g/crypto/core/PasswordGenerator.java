@@ -15,65 +15,115 @@
  */
 package de.l9g.crypto.core;
 
-import java.util.Random;
+import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Utility class for generating random passwords or tokens.
- * It uses a predefined set of characters to generate random strings of a 
+ * It uses a predefined set of characters to generate random strings of a
  * specified length.
  *
  * @author Thorsten Ludewig (t.ludewig@gmail.com)
  */
+@Slf4j
+@UtilityClass
 public class PasswordGenerator
 {
   /**
-   * Array of characters used for generating passwords.
+   * Lowercase letters excluding ambiguous character 'l'.
    */
-  private final static char[] PWCHARS =
-  {
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '.', '!', '#', '%',
-    '/', '?', '+', '*', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k',
-    'm', 'n', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B',
-    'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'R', 'S', 'T',
-    'U', 'V', 'W', 'X', 'Y', 'Z', '$', '&', '<', '>'
-  };
+  private static final String LOWERCASE = "abcdefghijkmnopqrstuvwxyz";
 
   /**
-   * Singleton instance of the PasswordGenerator.
+   * Uppercase letters excluding ambiguous characters 'O' and 'I'.
    */
-  private final static PasswordGenerator SINGLETON = new PasswordGenerator();
+  private static final String UPPERCASE = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 
   /**
-   * Random number generator used for selecting characters.
+   * Digits 0-9.
    */
-  private final Random random;
+  private static final String DIGITS = "0123456789";
 
   /**
-   * Private constructor to initialize the random number generator.
+   * URL-safe special characters from the 7-bit ASCII charset.
+   * Excluded: : + ? & / % # = @ $ ! and other URL-sensitive characters.
+   * Also excluded: space, quotes, backslash, backtick (shell-unsafe).
    */
-  private PasswordGenerator()
-  {
-    random = new Random(System.currentTimeMillis());
-  }
+  private static final String SPECIAL = "-.~_^(){}[]<>*";
 
   /**
-   * Generates a random string of a specified length using the predefined 
-   * character set.
+   * Combined pool of all allowed characters.
+   */
+  private static final String ALL_CHARS = LOWERCASE + UPPERCASE + DIGITS + SPECIAL;
+
+  private static final SecureRandom RANDOM = new SecureRandom();
+
+  /**
+   * Minimum password length to satisfy all character group requirements.
+   */
+  private static final int MIN_LENGTH = 4;
+
+  /**
+   * Generates a cryptographically secure random password of the given length.
    *
-   * @param length The desired length of the generated string.
+   * <p>
+   * The password is guaranteed to contain at least one character from each
+   * of the four character groups: lowercase, uppercase, digits, and special characters.
    *
-   * @return A randomly generated string.
+   * @param length the desired password length (must be at least {@value MIN_LENGTH})
+   *
+   * @return a randomly generated password as a {@code String}
+   *
+   * @throws IllegalArgumentException if {@code length} is less than {@value MIN_LENGTH}
    */
   public static String generate(int length)
   {
-    char[] pwd = new char[length];
 
-    for(int i = 0; i < length; i ++)
+    if(length < MIN_LENGTH)
     {
-      pwd[i] = PWCHARS[SINGLETON.random.nextInt(PWCHARS.length)];
+      throw new IllegalArgumentException(
+        "Password length must be at least %d characters.".formatted(MIN_LENGTH));
     }
 
-    return String.valueOf(pwd);
+    log.debug("Generating random password with length {}", length);
+
+    List<Character> passwordChars = new ArrayList<>(length);
+
+    // Guarantee at least one character from each required group
+    passwordChars.add(randomChar(LOWERCASE));
+    passwordChars.add(randomChar(UPPERCASE));
+    passwordChars.add(randomChar(DIGITS));
+    passwordChars.add(randomChar(SPECIAL));
+
+    // Fill remaining positions from the full character pool
+    for(int i = MIN_LENGTH; i < length; i ++)
+    {
+      passwordChars.add(randomChar(ALL_CHARS));
+    }
+
+    // Shuffle to avoid predictable positions for mandatory characters
+    Collections.shuffle(passwordChars, RANDOM);
+
+    StringBuilder password = new StringBuilder(length);
+    passwordChars.forEach(password :: append);
+
+    return password.toString();
+  }
+
+  /**
+   * Returns a random character from the given character pool.
+   *
+   * @param pool the string of characters to choose from
+   *
+   * @return a randomly selected character
+   */
+  private static char randomChar(String pool)
+  {
+    return pool.charAt(RANDOM.nextInt(pool.length()));
   }
 
 }

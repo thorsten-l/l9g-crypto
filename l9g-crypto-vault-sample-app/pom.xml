@@ -12,7 +12,7 @@
   
   <groupId>de.l9g</groupId>
   <artifactId>crypto-vault-sample-app</artifactId>
-  <version>1.0.3-SNAPSHOT</version>
+  <version>1.0.3</version>
   <name>L9G Crypto Vault Sample Web Application</name>
   <description>L9G Crypto Vault Sample Web Application</description>
   

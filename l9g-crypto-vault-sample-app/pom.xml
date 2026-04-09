@@ -12,13 +12,13 @@
   
   <groupId>de.l9g</groupId>
   <artifactId>crypto-vault-sample-app</artifactId>
-  <version>1.0.4-SNAPSHOT</version>
+  <version>1.0.4</version>
   <name>L9G Crypto Vault Sample Web Application</name>
   <description>L9G Crypto Vault Sample Web Application</description>
   
   <properties>
     <java.version>17</java.version>
-    <l9g.crypto.version>1.0.4-SNAPSHOT</l9g.crypto.version>
+    <l9g.crypto.version>1.0.4</l9g.crypto.version>
     <build.profile>default</build.profile>
     <exec.inheritIo>true</exec.inheritIo>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

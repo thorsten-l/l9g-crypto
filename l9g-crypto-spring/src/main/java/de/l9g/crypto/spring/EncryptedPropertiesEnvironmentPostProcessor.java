@@ -27,12 +27,40 @@ import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.PropertySource;
 
+/**
+ * Spring Boot {@link EnvironmentPostProcessor} that automatically decrypts 
+ * encrypted properties in the application environment.
+ * <p>
+ * This processor scans all {@link EnumerablePropertySource}s for string 
+ * properties starting with the {@code {AES256}} prefix. When an encrypted 
+ * property is found, it is decrypted using the {@link CryptoHandler}.
+ * <p>
+ * The decrypted properties are then collected into a new {@link MapPropertySource} 
+ * which is added to the beginning of the environment's property sources. 
+ * This ensures that decrypted values take precedence over their encrypted 
+ * counterparts, making the decryption transparent to the application.
+ *
+ * @author Thorsten Ludewig (t.ludewig@gmail.com)
+ */
 public class EncryptedPropertiesEnvironmentPostProcessor implements
   EnvironmentPostProcessor
 {
 
+  /**
+   * The crypto handler used for decrypting property values.
+   */
   private final CryptoHandler cryptoHandler = CryptoHandler.getInstance();
 
+  /**
+   * Post-processes the Spring environment to decrypt properties.
+   * <p>
+   * Iterates through all available property sources, identifies encrypted 
+   * strings, and registers their decrypted versions in a high-priority 
+   * property source.
+   *
+   * @param environment The configurable environment to process.
+   * @param application The Spring application instance.
+   */
   @Override
   public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application)
   {

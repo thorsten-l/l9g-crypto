@@ -27,6 +27,11 @@ import javax.crypto.SecretKey;
 import org.springframework.beans.factory.annotation.Value;
 
 /**
+ * Service for managing the application's Vault and its associated administrator keys.
+ * <p>
+ * This service handles the persistence of administrator keys (WebAuthn credentials) 
+ * and manages the lifecycle of the volatile master key. The master key is stored 
+ * only in memory and is subject to a Time-To-Live (TTL).
  *
  * @author Thorsten Ludewig (t.ludewig@gmail.com)
  */
@@ -34,16 +39,36 @@ import org.springframework.beans.factory.annotation.Value;
 @Service
 public class VaultService
 {
+  /**
+   * Filename for persisting administrator keys.
+   */
   private static final String ADMINKEYS_FILENAME = "data/vault-adminkeys.json";
 
+  /**
+   * In-memory list of registered administrator keys.
+   */
   private final List<VaultAdminKey> adminKeys = new ArrayList<>();
 
+  /**
+   * Time-To-Live for the master key in milliseconds.
+   */
   private final long masterkeyTTL;
 
+  /**
+   * The volatile master key, stored only in RAM.
+   */
   private SecretKey masterKey;
 
+  /**
+   * Timestamp when the master key was last set/unlocked.
+   */
   private long masterKeyTimestamp;
 
+  /**
+   * Constructs the VaultService and loads existing administrator keys from disk.
+   *
+   * @param masterkeyTTL The TTL for the master key in milliseconds.
+   */
   public VaultService(@Value("${app.vault.masterkey-ttl}") long masterkeyTTL)
   {
     this.masterkeyTTL = masterkeyTTL;
@@ -68,12 +93,23 @@ public class VaultService
     }
   }
 
+  /**
+   * Adds a new administrator key and persists it to disk.
+   *
+   * @param key The administrator key to add.
+   */
   public synchronized void addVaultAdminKey(VaultAdminKey key)
   {
     adminKeys.add(key);
     saveAdminKeys();
   }
 
+  /**
+   * Finds administrator keys associated with a specific admin ID.
+   *
+   * @param adminId The admin ID (e.g., username or email).
+   * @return A list of matching administrator keys.
+   */
   public synchronized List<VaultAdminKey> findVaultAdminKeysByAdminId(String adminId)
   {
     final List<VaultAdminKey> resultList = new ArrayList<>();
@@ -87,6 +123,11 @@ public class VaultService
     return resultList;
   }
 
+  /**
+   * Returns a list of all registered administrator keys (without sensitive payload).
+   *
+   * @return A list of all administrator keys.
+   */
   public synchronized List<VaultAdminKey> findAllVaultAdminKeys()
   {
     final List<VaultAdminKey> resultList = new ArrayList<>();
@@ -102,11 +143,21 @@ public class VaultService
     return resultList;
   }
 
+  /**
+   * Checks if any administrator keys are registered.
+   *
+   * @return {@code true} if no keys exist, {@code false} otherwise.
+   */
   public synchronized boolean adminKeysIsEmpty()
   {
     return adminKeys.isEmpty();
   }
 
+  /**
+   * Calculates the remaining time until the master key expires.
+   *
+   * @return Remaining time in seconds.
+   */
   public long getUnlockTimeLeft()
   {
     long timeLeft = (masterkeyTTL + masterKeyTimestamp 
@@ -114,6 +165,11 @@ public class VaultService
     return (timeLeft > 0 ) ? timeLeft : 0;
   }
   
+  /**
+   * Retrieves the master key if it is currently unlocked and not expired.
+   *
+   * @return The {@link SecretKey}, or {@code null} if sealed or expired.
+   */
   public synchronized SecretKey getUnlockedKey()
   {
     if(masterkeyTTL > 0
@@ -124,12 +180,22 @@ public class VaultService
     return masterKey;
   }
 
+  /**
+   * Sets the master key and resets the expiration timer.
+   *
+   * @param masterKey The master key to unlock.
+   */
   public synchronized void setUnlockedKey(SecretKey masterKey)
   {
     this.masterKey = masterKey;
     this.masterKeyTimestamp = System.currentTimeMillis();
   }
 
+  /**
+   * Removes an administrator key by its WebAuthn credential ID.
+   *
+   * @param credentialId The credential ID to remove.
+   */
   public synchronized void removeVaultAdminKeyByCredentialId(String credentialId)
   {
     if(adminKeys.removeIf(key -> key.credentialId().equals(credentialId)))
@@ -143,6 +209,9 @@ public class VaultService
     }
   }
 
+  /**
+   * Persists the current list of administrator keys to the JSON file.
+   */
   private synchronized void saveAdminKeys()
   {
     ObjectMapper mapper = new ObjectMapper();

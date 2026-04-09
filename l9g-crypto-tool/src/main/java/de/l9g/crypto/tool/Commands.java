@@ -24,9 +24,15 @@ import org.springframework.shell.command.annotation.Command;
 import org.springframework.shell.command.annotation.Option;
 
 /**
- * This class defines the available commands for the L9G Crypto Tool.
- * It provides functionalities for showing the application version,
- * encrypting and decrypting text, and generating random passwords.
+ * Defines the available shell commands for the L9G Crypto Tool.
+ * <p>
+ * This class implements various cryptographic utilities including:
+ * <ul>
+ *   <li>Encryption of clear text using AES-256 GCM.</li>
+ *   <li>Decryption of prefixed encrypted strings.</li>
+ *   <li>Generation of secure random passwords and tokens.</li>
+ *   <li>Application version information.</li>
+ * </ul>
  *
  * @author Thorsten Ludewig (t.ludewig@gmail.com)
  */
@@ -35,14 +41,20 @@ import org.springframework.shell.command.annotation.Option;
 @Slf4j
 public class Commands
 {
+  /**
+   * The crypto handler used for all encryption and decryption operations.
+   */
   private final CryptoHandler cryptoHandler = CryptoHandler.getInstance();
 
+  /**
+   * Spring Boot build properties for versioning.
+   */
   private final BuildProperties buildProperties;
 
   /**
-   * Displays the application version.
+   * Displays the current application version.
    *
-   * @return A string containing the artifact ID and version of the application.
+   * @return A string containing the artifact name and version.
    */
   @Command(description = "Show application version")
   public String version()
@@ -51,10 +63,13 @@ public class Commands
   }
 
   /**
-   * Encrypts the provided clear text. The encrypted text is prefixed with "{AES256}".
+   * Encrypts the provided clear text.
+   * <p>
+   * The resulting encrypted text is encoded in Base64 and prefixed 
+   * with {@code {AES256}}.
    *
    * @param text The clear text to be encrypted.
-   * @throws Throwable if an error occurs during encryption.
+   * @throws Throwable If an error occurs during the encryption process.
    */
   @Command(description = "encrypt clear text for passwords")
   public void encrypt(
@@ -66,10 +81,12 @@ public class Commands
   }
 
   /**
-   * Decrypts the provided encrypted text. The encrypted text is expected to be prefixed with "{AES256}".
+   * Decrypts the provided encrypted text.
+   * <p>
+   * The input text must start with the {@code {AES256}} prefix.
    *
    * @param encrypted The encrypted text to be decrypted.
-   * @throws Throwable if an error occurs during decryption.
+   * @throws Throwable If an error occurs during the decryption process.
    */
   @Command(description = "decrypt encrypted text")
   public void decrypt(
@@ -82,10 +99,13 @@ public class Commands
   }
 
   /**
-   * Generates a random password of a specified length and then encrypts it.
+   * Generates a random password and immediately encrypts it.
+   * <p>
+   * This command combines password generation and encryption in a single step 
+   * for improved usability.
    *
-   * @param length The number of characters for the generated password.
-   * @throws Throwable if an error occurs during password generation or encryption.
+   * @param length The desired length of the password (default: 16).
+   * @throws Throwable If an error occurs during generation or encryption.
    */
   @Command(alias = "pwgen", description = "create random passwords")
   public void passwordGenerator(

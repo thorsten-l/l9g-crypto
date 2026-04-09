@@ -44,6 +44,11 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 /**
+ * REST controller for Vault-related operations.
+ * <p>
+ * This controller provides endpoints for managing administrator keys and 
+ * performing the unseal operation. It integrates WebAuthn-based key 
+ * derivation (PRF extension) to unlock the server's master key.
  *
  * @author Thorsten Ludewig (t.ludewig@gmail.com)
  */
@@ -54,12 +59,24 @@ import org.springframework.web.bind.annotation.RequestParam;
 @PreAuthorize("hasRole('ADMIN')")
 public class VaultApiController
 {
-  // Allows standard Base64 (+/=) and Base64url (_-) characters as used by WebAuthn
+  /**
+   * Regex pattern for validating WebAuthn credential IDs.
+   */
   private static final Pattern CREDENTIAL_ID_PATTERN =
     Pattern.compile("^[A-Za-z0-9+/_=\\-]+$");
 
+  /**
+   * The Vault service used for key management and state.
+   */
   private final VaultService vaultService;
 
+  /**
+   * Registers a new administrator key (YubiKey).
+   *
+   * @param principal The authenticated administrator.
+   * @param vaultAdminKey The key metadata and encrypted master key.
+   * @return Success response.
+   */
   @PostMapping(path = "/adminkey", produces = MediaType.TEXT_PLAIN_VALUE)
   ResponseEntity<String> addAdminkey(
     @AuthenticationPrincipal DefaultOidcUser principal,
@@ -81,6 +98,13 @@ public class VaultApiController
     return ResponseEntity.ok("OK");
   }
 
+  /**
+   * Deletes an existing administrator key.
+   *
+   * @param credentialId The WebAuthn credential ID to remove.
+   * @param principal The authenticated administrator.
+   * @return Success response.
+   */
   @DeleteMapping(path = "/adminkey", produces = MediaType.TEXT_PLAIN_VALUE)
   ResponseEntity<String> deleteAdminkey(
     @RequestParam(name = "id", required = true) String credentialId,
@@ -118,6 +142,13 @@ public class VaultApiController
     return ResponseEntity.ok("OK");
   }
 
+  /**
+   * Retrieves challenge data for unsealing.
+   *
+   * @param oidcUser The authenticated administrator.
+   * @return A list of keys belonging to the administrator.
+   * @throws Exception If an error occurs.
+   */
   @GetMapping("/challenge-data")
   public List<VaultAdminKey> getChallengeData(
     @AuthenticationPrincipal OidcUser oidcUser)
@@ -134,13 +165,29 @@ public class VaultApiController
     return adminKeys;
   }
 
+  /**
+   * Returns the remaining time until the master key expires.
+   *
+   * @param principal The authenticated administrator.
+   * @return Time in seconds.
+   */
   @GetMapping("/unlocktimeleft")
   public long unlockTimeLeft(@AuthenticationPrincipal OidcUser principal)
   {
-    // log.trace("principal={}", principal);
     return vaultService.getUnlockTimeLeft();
   }
 
+  /**
+   * Performs the unseal operation using hardware-backed key derivation.
+   * <p>
+   * This method takes the PRF output from the user's YubiKey, uses it as 
+   * a Key Encryption Key (KEK) to decrypt the administrator's copy of the 
+   * master key, and then unlocks the global Vault state.
+   *
+   * @param request The unseal request containing the PRF output.
+   * @param oidcUser The authenticated administrator.
+   * @throws Exception If decryption fails.
+   */
   @PostMapping("/unseal")
   public void unsealServer(@RequestBody VaultUnsealRequest request,
     @AuthenticationPrincipal OidcUser oidcUser)

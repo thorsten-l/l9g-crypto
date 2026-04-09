@@ -36,25 +36,23 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * Service class for handling JWT (JSON Web Token) operations such as decoding and validating signatures.
- * This class provides methods to split, decode, and validate JWT tokens using various algorithms.
- *
+ * Service class for handling JWT (JSON Web Token) operations such as decoding 
+ * and validating signatures.
  * <p>
- * It supports RS256 and HS512 algorithms for signature validation.</p>
- *
+ * This class provides methods to split, decode, and validate JWT tokens using 
+ * various algorithms.
  * <p>
- * Methods:</p>
+ * It supports RS256 and HS512 algorithms for signature validation.
+ * <p>
+ * Methods:
  * <ul>
- * <li>{@link #splitJwt(String)} - Splits a JWT token into its constituent parts.</li>
- * <li>{@link #decodeJwtPayload(String)} - Decodes the payload of a JWT token and returns it as a Map.</li>
- * <li>{@link #validateJwtSignature(String)} - Validates the signature of a JWT token.</li>
- * <li>{@link #getPublicKeyFromJwks(JwksCerts, String)} - Retrieves the public key from JWKS (JSON Web Key Set) using the key ID.</li>
- * <li>{@link #validateRs256Signature(String, String)} - Validates the RS256 signature of a JWT token.</li>
- * <li>{@link #validateHs512Signature(String)} - Validates the HS512 signature of a JWT token (currently returns true).</li>
+ *   <li>{@link #splitJwt(String)} - Splits a JWT token into its constituent parts.</li>
+ *   <li>{@link #decodeJwtPayload(String)} - Decodes the payload of a JWT token.</li>
+ *   <li>{@link #validateJwtSignature(String)} - Validates the signature of a JWT token.</li>
+ *   <li>{@link #getPublicKeyFromJwks(JwksCerts, String)} - Retrieves the public key from JWKS.</li>
+ *   <li>{@link #validateRs256Signature(String, String)} - Validates the RS256 signature.</li>
+ *   <li>{@link #validateHs512Signature(String)} - Validates the HS512 signature.</li>
  * </ul>
- *
- * <p>
- * Note: The HS512 signature validation method is currently a stub and always returns true.</p>
  *
  * @author Thorsten Ludewig (t.ludewig@gmail.com)
  */
@@ -78,13 +76,14 @@ public class JwtService
   private String clientSecret;
 
   /**
-   * Splits a JWT token string into its three constituent parts: header, payload, and signature.
+   * Splits a JWT token string into its three constituent parts: header, payload, 
+   * and signature.
    *
    * @param jwt The JWT string to split.
    *
-   * @return A string array containing the header, payload, and signature in that order.
+   * @return A string array containing the header, payload, and signature.
    *
-   * @throws IllegalArgumentException If the JWT format is invalid (does not have three parts).
+   * @throws IllegalArgumentException If the JWT format is invalid.
    */
   public String[] splitJwt(String jwt)
   {
@@ -96,14 +95,12 @@ public class JwtService
     return parts;
   }
 
-  // decode Jwt ///////////////////////////////////////////////////////////
   /**
    * Decodes the payload section of a JWT token and returns it as a sorted map.
-   * The payload is expected to be a Base64 URL-encoded JSON string.
    *
-   * @param jwt The full JWT string from which to decode the payload.
+   * @param jwt The full JWT string.
    *
-   * @return A {@link Map} containing the decoded payload claims, sorted by natural order of keys.
+   * @return A {@link Map} containing the decoded payload claims.
    *
    * @throws RuntimeException If an error occurs during decoding or JSON parsing.
    */
@@ -130,11 +127,9 @@ public class JwtService
     }
   }
 
-  // validate Jwt ///////////////////////////////////////////////////////////
   /**
    * Validates the signature of a JWT token based on its algorithm.
-   * Supports RS256 and HS512 algorithms. For RS256, it retrieves the public key from JWKS.
-   * For HS512, it currently performs a placeholder validation (always returns true).
+   * Supports RS256 and HS512 algorithms.
    *
    * @param jwt The JWT string to validate.
    *
@@ -177,16 +172,13 @@ public class JwtService
     }
   }
 
-  /////////////////////////////////////////////////////////////////////////////
   /**
-   * Retrieves an RSA public key from a JSON Web Key Set (JWKS) based on the key ID (kid).
-   * It specifically looks for RS256 algorithm keys and extracts the public key from the X.509 certificate chain.
+   * Retrieves an RSA public key from a JSON Web Key Set (JWKS).
    *
    * @param jwksCerts The {@link JwksCerts} object containing the JWKS.
    * @param kid The key ID of the public key to retrieve.
    * @return The {@link RSAPublicKey} corresponding to the provided kid.
-   * @throws Exception If the public key cannot be found or an error occurs during certificate processing.
-   * @throws IllegalArgumentException If no public key with the specified kid and RS256 algorithm is found.
+   * @throws Exception If the public key cannot be found or processed.
    */
   private RSAPublicKey getPublicKeyFromJwks(JwksCerts jwksCerts, String kid)
     throws Exception
@@ -211,10 +203,9 @@ public class JwtService
 
   /**
    * Validates the RS256 signature of a JWT token.
-   * This method uses the public key retrieved from JWKS to verify the token's signature.
    *
    * @param jwt The JWT string to validate.
-   * @param keyId The key ID (kid) of the public key to use for validation.
+   * @param keyId The key ID (kid) of the public key.
    *
    * @return {@code true} if the signature is valid, {@code false} otherwise.
    */
@@ -248,9 +239,7 @@ public class JwtService
   }
 
   /**
-   * Validates the HS512 (HMAC-SHA512) signature of a JWT token using the
-   * configured OAuth2 client secret as the HMAC key.
-   * Uses a constant-time comparison to prevent timing attacks.
+   * Validates the HS512 (HMAC-SHA512) signature of a JWT token.
    *
    * @param jwt The JWT string to validate.
    *

@@ -22,10 +22,16 @@ import jakarta.persistence.Converter;
 /**
  * JPA Attribute Converter for transparent encryption and decryption of String
  * attributes in the database.
- * This converter uses {@link CryptoHandler} to encrypt values before persisting
- * them and decrypt them when loading from the database.
+ * <p>
+ * This converter leverages the {@link CryptoHandler} to encrypt sensitive 
+ * entity fields before they are persisted to the database and decrypt them 
+ * automatically when they are loaded back into memory.
+ * <p>
+ * By using this converter, sensitive information is stored in an encrypted 
+ * format (AES-256 GCM) in the database column, while the application can 
+ * work with the plain text values in the entity objects.
  *
- * @author Thorsten Ludewig t.ludewig@gmail.com
+ * @author Thorsten Ludewig (t.ludewig@gmail.com)
  */
 @Converter
 public class EncryptedAttributeConverter implements
@@ -33,12 +39,16 @@ public class EncryptedAttributeConverter implements
 {
 
   /**
-   * Converts an entity attribute value to its encrypted form for storage in the
-   * database column.
+   * Converts an entity attribute value to its encrypted form for storage in 
+   * the database column.
+   * <p>
+   * The resulting string will be prefixed with {@code {AES256}} as defined 
+   * by {@link CryptoHandler}.
    *
-   * @param attribute The value to be converted (encrypted).
+   * @param attribute The plain text value to be encrypted.
    *
-   * @return The encrypted value, or null if the input attribute is null.
+   * @return The encrypted and prefixed string, or {@code null} if the input 
+   *         attribute is {@code null}.
    */
   @Override
   public String convertToDatabaseColumn(String attribute)
@@ -47,12 +57,15 @@ public class EncryptedAttributeConverter implements
   }
 
   /**
-   * Converts a database column value to its decrypted form for use as an entity
-   * attribute.
+   * Converts a database column value to its decrypted form for use as an 
+   * entity attribute.
+   * <p>
+   * This method performs transparent decryption if the prefix is present.
    *
-   * @param dbData The value retrieved from the database column (encrypted).
+   * @param dbData The encrypted value retrieved from the database column.
    *
-   * @return The decrypted value, or null if the database value is null.
+   * @return The decrypted plain text value, or {@code null} if the database 
+   *         value is {@code null}.
    */
   @Override
   public String convertToEntityAttribute(String dbData)

@@ -17,27 +17,44 @@ package de.l9g.crypto.core;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.Set;
+import javax.security.auth.Destroyable;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * Manages the application's secret key, loading it from or generating it into a file.
  * This class ensures a single instance of the secret key is available throughout the application
  * for cryptographic operations, primarily for AES-256 encryption.
+ * <p>
+ * The secret key is stored in a binary file. The path to this file can be configured via the
+ * {@code SECRET_PATH} environment variable. If not provided, it defaults to {@code data/secret.bin}.
+ * On systems supporting POSIX file attributes, strict file permissions (read-only for the owner)
+ * are applied to the secret file.
+ * </p>
  *
  * @author Thorsten Ludewig (t.ludewig@gmail.com)
  */
 @Slf4j
-public class AppSecretKey
+public class AppSecretKey implements Destroyable, AutoCloseable
 {
   /**
-   * The path to the file where the secret key is stored.
+   * Environment variable name for overriding the default secret key file path.
    */
-  private static final Path SECRET_PATH = Path.of("data/secret.bin");
+  private static final String SECRET_PATH_ENV_NAME = "SECRET_PATH";
+
+  /**
+   * The default path to the file where the secret key is stored.
+   */
+  private static final Path DEFAULT_SECRET_PATH = Path.of("data/secret.bin");
 
   /**
    * The expected length of the secret key in bytes (32 bytes for AES-256).
@@ -57,7 +74,8 @@ public class AppSecretKey
 
   /**
    * Returns the singleton instance of {@code AppSecretKey}.
-   * This method ensures that the secret key is loaded or generated only once.
+   * This method ensures that the secret key is loaded or generated only once
+   * using the initialization-on-demand holder idiom.
    *
    * @return The singleton instance of {@code AppSecretKey}.
    */
@@ -67,7 +85,8 @@ public class AppSecretKey
   }
 
   /**
-   * Inner static class to implement the singleton pattern for {@code AppSecretKey}.
+   * Inner static class to implement the initialization-on-demand holder idiom
+   * for the {@code AppSecretKey} singleton.
    */
   private static final class Holder
   {
@@ -80,61 +99,145 @@ public class AppSecretKey
 
   /**
    * Loads the secret key from a file or generates a new one if it doesn't exist.
-   * Sets appropriate file permissions for security.
+   * <p>
+   * If a new key is generated, it is written to the configured path with restricted
+   * file permissions to ensure security.
+   * </p>
    *
    * @return An instance of {@code AppSecretKey} with the loaded or newly generated key.
+   *
+   * @throws RuntimeException If the secret file cannot be read, created, or written.
    */
   private static AppSecretKey loadOrCreate()
   {
+    Path secretPath = DEFAULT_SECRET_PATH;
+
+    String secretPathEnv = System.getenv(SECRET_PATH_ENV_NAME);
+    if(secretPathEnv != null &&  ! secretPathEnv.isBlank())
+    {
+      secretPath = Path.of(secretPathEnv);
+    }
+
     try
     {
-      Files.createDirectories(SECRET_PATH.getParent());
-
-      if(Files.exists(SECRET_PATH))
+      if(secretPath.getParent() != null)
       {
-        byte[] secretKey = Files.readAllBytes(SECRET_PATH);
-        log.debug("Loading secret file");
-        return new AppSecretKey(secretKey);
+        Files.createDirectories(secretPath.getParent());
       }
 
-      byte[] secretKey = new byte[KEY_LEN];
-      new SecureRandom().nextBytes(secretKey);
-      log.info("Writing secret file");
-      Files.write(SECRET_PATH, secretKey, StandardOpenOption.CREATE_NEW);
+      byte[] secretKey;
 
-      File secretFile = SECRET_PATH.toFile();
+      if(Files.exists(secretPath))
+      {
+        secretKey = Files.readAllBytes(secretPath);
+        log.debug("Loading secret file: {}", secretPath);
 
-      // file permissions - r-- --- ---
-      secretFile.setExecutable(false, false);
-      secretFile.setWritable(false, false);
-      secretFile.setReadable(false, false);
-      secretFile.setReadable(true, true);
+        if(secretKey.length != KEY_LEN)
+        {
+          throw new RuntimeException("Invalid secret key length: "
+            + secretKey.length);
+        }
+      }
+      else
+      {
+        secretKey = new byte[KEY_LEN];
+        new SecureRandom().nextBytes(secretKey);
+        log.info("Generating and writing new secret file: {}", secretPath);
+
+        // Set POSIX permissions atomically if supported
+        if(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"))
+        {
+          Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rw-------");
+          FileAttribute<Set<PosixFilePermission>> attr = PosixFilePermissions.asFileAttribute(perms);
+          Files.createFile(secretPath, attr);
+          Files.write(secretPath, secretKey, StandardOpenOption.WRITE);
+          Files.setPosixFilePermissions(secretPath, PosixFilePermissions.fromString("r--------"));
+        }
+        else
+        {
+          // Fallback for non-POSIX (Windows): Write first, then restrict
+          Files.write(secretPath, secretKey, StandardOpenOption.CREATE_NEW);
+          File secretFile = secretPath.toFile();
+          secretFile.setExecutable(false, false);
+          secretFile.setWritable(false, false);
+          secretFile.setReadable(false, false);
+          secretFile.setReadable(true, true);
+        }
+      }
 
       return new AppSecretKey(secretKey);
     }
     catch(IOException e)
     {
-      log.error("ERROR: secret file ", e);
-      System.exit(-1);
+      log.error("CRITICAL ERROR: Could not manage secret file at {}", secretPath, e);
+      throw new RuntimeException("Application cannot start without secret key: " + secretPath, e);
     }
-
-    return null;
   }
 
   /**
-   * Returns a mutable copy of the raw AES-256 secret key bytes (32 bytes).
-   * It returns a copy to prevent external modification of the internal key.
+   * Returns a copy of the raw AES-256 secret key bytes (32 bytes).
+   * <p>
+   * This method returns a new array to prevent external modification of the internal
+   * secret key state.
+   * </p>
    *
-   * @return A byte array containing the secret key.
+   * @return A byte array containing a copy of the secret key.
+   *
+   * @throws IllegalStateException If the secret key has been destroyed.
    */
   public byte[] getSecretKey() // mutable copy 
   {
+    if(isDestroyed())
+    {
+      throw new IllegalStateException("Secret key has been destroyed");
+    }
+
     return Arrays.copyOf(secretKey, secretKey.length);
+  }
+
+  /**
+   * Checks if the secret key has been destroyed.
+   *
+   * @return true if the key is destroyed, false otherwise.
+   */
+  @Override
+  public boolean isDestroyed()
+  {
+    return destroyed;
+  }
+
+  /**
+   * Securely destroys the secret key by wiping its contents with zeros.
+   * Once destroyed, the key can no longer be retrieved.
+   */
+  @Override
+  public void destroy()
+  {
+    if( ! destroyed)
+    {
+      Arrays.fill(secretKey, (byte)0);
+      destroyed = true;
+      log.info("AppSecretKey has been securely wiped from memory.");
+    }
+  }
+
+  /**
+   * Closes the resource by calling {@link #destroy()}.
+   */
+  @Override
+  public void close()
+  {
+    destroy();
   }
 
   /**
    * The raw byte array of the secret key.
    */
   private final byte[] secretKey;
+
+  /**
+   * Flag indicating if the secret key has been destroyed.
+   */
+  private volatile boolean destroyed = false;
 
 }

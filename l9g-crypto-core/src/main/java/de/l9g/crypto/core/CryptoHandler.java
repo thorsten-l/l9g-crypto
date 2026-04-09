@@ -18,13 +18,17 @@ package de.l9g.crypto.core;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * A singleton handler for performing cryptographic operations.
+ * A thread-safe singleton handler for performing high-level cryptographic operations.
  * <p>
- * This class provides a centralized way to encrypt and decrypt strings using
- * AES-256. It manages a single instance of the {@link AES256} cipher,
- * initialized with a secret key from {@link AppSecretKey}.
+ * This class provides a centralized way to encrypt and decrypt strings and byte arrays
+ * using AES-256 GCM. It manages a single instance of the {@link AES256} cipher,
+ * which is automatically initialized with the application's master secret key 
+ * retrieved from {@link AppSecretKey}.
  * <p>
- * Encrypted values are prefixed with "{AES256}" to identify them as such.
+ * For convenience, encrypted string values are prefixed with {@code {AES256}}. 
+ * This allows the {@link #decrypt(String)} method to differentiate between 
+ * plain text and encrypted content, enabling transparent decryption (e.g., for 
+ * configuration properties).
  *
  * @author Thorsten Ludewig (t.ludewig@gmail.com)
  */
@@ -32,27 +36,40 @@ import lombok.extern.slf4j.Slf4j;
 public class CryptoHandler
 {
   /**
-   * The prefix used for AES-256 encrypted strings.
+   * The prefix used to identify and version AES-256 encrypted strings.
    */
   public final static String AES256_PREFIX = "{AES256}";
 
   /**
-   * The AES-256 cipher instance used for encryption and decryption.
+   * The underlying AES-256 cipher instance.
    */
   private final AES256 aes256;
 
   /**
-   * Private constructor to initialize the {@code CryptoHandler} with an AES256 instance
-   * using the application's secret key.
+   * Private constructor to initialize the {@code CryptoHandler}.
+   * It retrieves the master secret key from {@link AppSecretKey} and
+   * initializes the internal {@link AES256} cipher.
+   * <p>
+   * To ensure maximum security, the temporary key copy is wiped immediately 
+   * after initialization.
    */
   private CryptoHandler()
   {
-    log.debug("CryptoHandler()");
-    aes256 = new AES256(AppSecretKey.getInstance().getSecretKey());
+    log.debug("Initializing CryptoHandler");
+    byte[] key = AppSecretKey.getInstance().getSecretKey();
+    try
+    {
+      aes256 = new AES256(key);
+    }
+    finally
+    {
+      AES256.wipe(key);
+    }
   }
 
   /**
-   * Returns the singleton instance of {@code CryptoHandler}.
+   * Returns the thread-safe singleton instance of {@code CryptoHandler}.
+   * Uses the initialization-on-demand holder idiom.
    *
    * @return The singleton instance.
    */
@@ -62,7 +79,7 @@ public class CryptoHandler
   }
 
   /**
-   * Inner static class to implement the singleton pattern for {@code CryptoHandler}.
+   * Inner static class to implement the initialization-on-demand holder idiom.
    */
   private static final class Holder
   {
@@ -70,17 +87,16 @@ public class CryptoHandler
      * The singleton instance of {@code CryptoHandler}.
      */
     private static final CryptoHandler INSTANCE = new CryptoHandler();
-
   }
 
   /**
-   * Encrypts a plain text string.
-   * <p>
-   * The resulting encrypted string is prefixed with {@code {AES256}}.
+   * Encrypts a plain text string and prepends the {@code {AES256}} prefix.
    *
    * @param text The plain text to encrypt.
    *
-   * @return The AES-256 encrypted and prefixed string.
+   * @return The encrypted string, encoded in Base64 and prefixed with {@code {AES256}}.
+   *
+   * @throws IllegalStateException If encryption fails.
    */
   public String encrypt(String text)
   {
@@ -88,15 +104,16 @@ public class CryptoHandler
   }
 
   /**
-   * Decrypts an encrypted string.
+   * Decrypts a string, provided it starts with the {@code {AES256}} prefix.
    * <p>
-   * This method checks for the {@code {AES256}} prefix. If present, it
-   * attempts to decrypt the subsequent value. If the prefix is not found, the
-   * original string is returned unmodified.
+   * If the input string is {@code null} or does not start with the prefix,
+   * it is returned as-is (transparent decryption).
    *
-   * @param encryptedText The encrypted string, potentially with a prefix.
+   * @param encryptedText The string to decrypt, potentially with the {@code {AES256}} prefix.
    *
-   * @return The decrypted plain text, or the original string if not encrypted.
+   * @return The decrypted plain text, or the original string if no prefix was found.
+   *
+   * @throws IllegalStateException If decryption of a prefixed string fails.
    */
   public String decrypt(String encryptedText)
   {
@@ -115,11 +132,13 @@ public class CryptoHandler
   }
 
   /**
-   * Encrypts a byte array.
+   * Encrypts a raw byte array.
    *
-   * @param bytes The byte array to encrypt.
+   * @param bytes The plain byte array to encrypt.
    *
-   * @return The encrypted byte array.
+   * @return The encrypted byte array (containing IV, ciphertext, and tag).
+   *
+   * @throws IllegalStateException If encryption fails.
    */
   public byte[] encrypt(byte[] bytes)
   {
@@ -127,11 +146,13 @@ public class CryptoHandler
   }
 
   /**
-   * Decrypts a byte array.
+   * Decrypts a raw encrypted byte array.
    *
-   * @param bytes The byte array to decrypt.
+   * @param bytes The encrypted byte array (IV + ciphertext + tag).
    *
-   * @return The decrypted byte array.
+   * @return The decrypted plain byte array.
+   *
+   * @throws IllegalStateException If decryption fails.
    */
   public byte[] decrypt(byte[] bytes)
   {

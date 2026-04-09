@@ -18,23 +18,32 @@ package de.l9g.crypto.core;
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Base64;
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import javax.security.auth.DestroyFailedException;
+import javax.security.auth.Destroyable;
 import lombok.extern.slf4j.Slf4j;
 
 /**
  * Provides AES-256 encryption and decryption functionality using GCM (Galois/Counter Mode).
  * This class handles key generation, encryption of strings and byte arrays, and decryption,
  * with secure random IV generation and authentication tags.
+ * <p>
+ * AES-256 GCM is used for robust encryption, providing both confidentiality and integrity.
+ * The output of encryption includes the Initialization Vector (IV) followed by the ciphertext
+ * and the authentication tag.
+ * </p>
  *
  * @author Thorsten Ludewig (t.ludewig@gmail.com)
  */
 @Slf4j
-public class AES256
+
+public class AES256 implements Destroyable, AutoCloseable
 {
   /**
    * The algorithm used for key generation and cipher operations (AES).
@@ -57,7 +66,7 @@ public class AES256
   private static final int IV_LEN_BYTES = 12;  // GCM recommended
 
   /**
-   * The length of the authentication tag in bits (16 bytes).
+   * The length of the authentication tag in bits (128 bits / 16 bytes).
    */
   private static final int TAG_LEN_BITS = 128; // 16 bytes auth tag
 
@@ -70,6 +79,11 @@ public class AES256
    * Secure random number generator for creating IVs.
    */
   private final SecureRandom secureRandom = new SecureRandom();
+
+  /**
+   * Flag indicating if the instance has been destroyed.
+   */
+  private volatile boolean destroyed = false;
 
   /**
    * Constructs an AES256 instance by generating a new 256-bit AES key.
@@ -89,7 +103,7 @@ public class AES256
    *
    * @param encodedSecretBytes The AES-256 key as a byte array (must be 32 bytes long).
    *
-   * @throws IllegalArgumentException If the provided key is not 32 bytes long.
+   * @throws IllegalArgumentException If the provided key is null or not 32 bytes long.
    */
   public AES256(byte[] encodedSecretBytes)
   {
@@ -113,99 +127,56 @@ public class AES256
   }
 
   /**
-   * Encrypts a plain text string using AES/GCM/NoPadding.
-   * The output is a Base64 encoded string containing the IV, ciphertext, and GCM tag.
+   * Helper method to check if the instance is destroyed.
    *
-   * @param plainText The string to encrypt.
-   *
-   * @return The Base64 encoded encrypted string.
-   *
-   * @throws IllegalStateException If encryption fails.
+   * @throws IllegalStateException If the instance has been destroyed.
    */
-  public String encrypt(String plainText)
+  private void checkDestroyed()
   {
-    try
+    if(isDestroyed())
     {
-      byte[] iv = new byte[IV_LEN_BYTES];
-      secureRandom.nextBytes(iv);
-
-      Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
-      cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG_LEN_BITS, iv));
-
-      byte[] ctWithTag = cipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
-
-      // output = IV || (ciphertext||tag)
-      byte[] out = new byte[IV_LEN_BYTES + ctWithTag.length];
-      System.arraycopy(iv, 0, out, 0, IV_LEN_BYTES);
-      System.arraycopy(ctWithTag, 0, out, IV_LEN_BYTES, ctWithTag.length);
-
-      return Base64.getEncoder().encodeToString(out);
-    }
-    catch(Exception ex)
-    {
-      log.error("Encryption failed", ex);
-      throw new IllegalStateException("Encryption failed", ex);
+      throw new IllegalStateException("AES256 instance has been destroyed");
     }
   }
 
   /**
-   * Decrypts a Base64 encoded encrypted string using AES/GCM/NoPadding.
+   * Helper method to securely wipe a byte array by filling it with zeros.
    *
-   * @param encryptedText The Base64 encoded encrypted string.
-   *
-   * @return The decrypted plain text string.
-   *
-   * @throws IllegalArgumentException If the encrypted payload is too short or malformed.
-   * @throws IllegalStateException If decryption fails.
+   * @param array The array to wipe.
    */
-  public String decrypt(String encryptedText)
+  public static void wipe(byte[] array)
   {
-    try
+    if(array != null)
     {
-      byte[] in = Base64.getDecoder().decode(encryptedText);
-
-      if(in.length < IV_LEN_BYTES + 16)
-      {
-        throw new IllegalArgumentException("Encrypted payload too short");
-      }
-
-      byte[] iv = java.util.Arrays.copyOfRange(in, 0, IV_LEN_BYTES);
-      byte[] ctWithTag = java.util.Arrays.copyOfRange(in, IV_LEN_BYTES, in.length);
-
-      Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
-      cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_LEN_BITS, iv));
-
-      byte[] pt = cipher.doFinal(ctWithTag);
-      return new String(pt, StandardCharsets.UTF_8);
-    }
-    catch(Exception ex)
-    {
-      log.error("Decryption failed", ex);
-      throw new IllegalStateException("Decryption failed", ex);
+      Arrays.fill(array, (byte)0);
     }
   }
 
   /**
    * Encrypts plain byte data using AES/GCM/NoPadding.
-   * The output byte array contains the IV, ciphertext, and GCM tag.
+   * The output byte array contains the IV (12 bytes), followed by the ciphertext 
+   * and the GCM authentication tag.
    *
    * @param plainData The byte array to encrypt.
    *
-   * @return The encrypted byte array.
+   * @return The encrypted byte array containing IV + ciphertext + tag.
    *
-   * @throws IllegalStateException If encryption fails.
+   * @throws IllegalStateException If encryption fails or the instance is destroyed.
    */
   public byte[] encrypt(byte[] plainData)
   {
+    checkDestroyed();
+    byte[] iv = new byte[IV_LEN_BYTES];
+    byte[] ctWithTag = null;
+
     try
     {
-      byte[] iv = new byte[IV_LEN_BYTES];
       secureRandom.nextBytes(iv);
 
       Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
       cipher.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG_LEN_BITS, iv));
 
-      byte[] ctWithTag = cipher.doFinal(plainData);
+      ctWithTag = cipher.doFinal(plainData);
 
       byte[] out = new byte[IV_LEN_BYTES + ctWithTag.length];
       System.arraycopy(iv, 0, out, 0, IV_LEN_BYTES);
@@ -218,20 +189,30 @@ public class AES256
       log.error("Encryption failed", ex);
       throw new IllegalStateException("Encryption failed", ex);
     }
+    finally
+    {
+      wipe(iv);
+      wipe(ctWithTag);
+    }
   }
 
   /**
    * Decrypts an encrypted byte array using AES/GCM/NoPadding.
+   * The input byte array must contain the IV (12 bytes) followed by the ciphertext and tag.
    *
-   * @param encryptedData The encrypted byte array.
+   * @param encryptedData The encrypted byte array (IV + ciphertext + tag).
    *
    * @return The decrypted plain byte array.
    *
    * @throws IllegalArgumentException If the encrypted payload is too short.
-   * @throws IllegalStateException If decryption fails.
+   * @throws IllegalStateException If decryption fails or the instance is destroyed.
    */
   public byte[] decrypt(byte[] encryptedData)
   {
+    checkDestroyed();
+    byte[] iv = null;
+    byte[] ctWithTag = null;
+
     try
     {
       if(encryptedData.length < IV_LEN_BYTES + 16)
@@ -239,8 +220,8 @@ public class AES256
         throw new IllegalArgumentException("Encrypted payload too short");
       }
 
-      byte[] iv = java.util.Arrays.copyOfRange(encryptedData, 0, IV_LEN_BYTES);
-      byte[] ctWithTag = java.util.Arrays.copyOfRange(encryptedData, IV_LEN_BYTES, encryptedData.length);
+      iv = java.util.Arrays.copyOfRange(encryptedData, 0, IV_LEN_BYTES);
+      ctWithTag = java.util.Arrays.copyOfRange(encryptedData, IV_LEN_BYTES, encryptedData.length);
 
       Cipher cipher = Cipher.getInstance(CIPHER_ALGORITHM);
       cipher.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_LEN_BITS, iv));
@@ -252,10 +233,72 @@ public class AES256
       log.error("Decryption failed", ex);
       throw new IllegalStateException("Decryption failed", ex);
     }
+    finally
+    {
+      wipe(iv);
+      wipe(ctWithTag);
+    }
   }
 
   /**
-   * Returns only the raw AES-256 key bytes (32 bytes).
+   * Encrypts a plain text string using AES/GCM/NoPadding.
+   * The output is a Base64 encoded string containing the IV, ciphertext, and GCM tag.
+   *
+   * @param plainText The string to encrypt.
+   *
+   * @return The Base64 encoded encrypted string.
+   * 
+   * @throws IllegalStateException If encryption fails or the instance is destroyed.
+   */
+  public String encrypt(String plainText)
+  {
+    byte[] plainBytes = null;
+
+    try
+    {
+      plainBytes = plainText.getBytes(StandardCharsets.UTF_8);
+      return Base64.getEncoder().encodeToString(encrypt(plainBytes));
+    }
+    finally
+    {
+      wipe(plainBytes);
+    }
+  }
+
+  /**
+   * Decrypts a Base64 encoded encrypted string using AES/GCM/NoPadding.
+   *
+   * @param encryptedText The Base64 encoded encrypted string.
+   *
+   * @return The decrypted plain text string.
+   *
+   * @throws IllegalStateException If decryption fails or the instance is destroyed.
+   */
+  public String decrypt(String encryptedText)
+  {
+    checkDestroyed();
+    byte[] encryptedTextBytes = null;
+    byte[] plainTextBytes = null;
+
+    try
+    {
+      encryptedTextBytes = Base64.getDecoder().decode(encryptedText);
+      plainTextBytes = decrypt(encryptedTextBytes);
+      return new String(plainTextBytes, StandardCharsets.UTF_8);
+    }
+    finally
+    {
+      wipe(encryptedTextBytes);
+      wipe(plainTextBytes);
+    }
+  }
+
+  /**
+   * Returns the raw AES-256 key bytes (32 bytes).
+   * 
+   * @return The secret key as a byte array.
+   * 
+   * @throws IllegalStateException If the key length is unexpected.
    */
   public byte[] getSecret()
   {
@@ -276,6 +319,54 @@ public class AES256
   public String getEncodedSecret()
   {
     return Base64.getEncoder().encodeToString(getSecret());
+  }
+
+  /**
+   * Securely destroys the secret key and wipes sensitive data.
+   * Once destroyed, the instance can no longer be used for encryption or decryption.
+   */
+  @Override
+  public void destroy()
+  {
+    if( ! destroyed)
+    {
+      try
+      {
+        if(key != null &&  ! key.isDestroyed())
+        {
+          key.destroy();
+        }
+      }
+      catch(DestroyFailedException e)
+      {
+        log.warn("Failed to destroy SecretKey", e);
+      }
+      finally
+      {
+        destroyed = true;
+        log.debug("AES256 instance destroyed.");
+      }
+    }
+  }
+
+  /**
+   * Checks if the instance has been destroyed.
+   *
+   * @return true if destroyed, false otherwise.
+   */
+  @Override
+  public boolean isDestroyed()
+  {
+    return destroyed;
+  }
+
+  /**
+   * Closes the instance by calling {@link #destroy()}.
+   */
+  @Override
+  public void close()
+  {
+    destroy();
   }
 
 }

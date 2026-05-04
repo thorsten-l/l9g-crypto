@@ -230,7 +230,14 @@ public class AES256 implements Destroyable, AutoCloseable
     }
     catch(Exception ex)
     {
-      log.error("Decryption failed", ex);
+      if (ex instanceof IllegalArgumentException)
+      {
+        log.warn("Decryption failed (validation error): {}", ex.getMessage());
+      }
+      else
+      {
+        log.error("Decryption failed", ex);
+      }
       throw new IllegalStateException("Decryption failed", ex);
     }
     finally
@@ -339,7 +346,8 @@ public class AES256 implements Destroyable, AutoCloseable
       }
       catch(DestroyFailedException e)
       {
-        log.warn("Failed to destroy SecretKey", e);
+        // Standard JCE providers (e.g., SunJCE) often do not support destroying SecretKeySpec.
+        log.debug("Failed to destroy SecretKey (not supported by provider): {}", e.getMessage());
       }
       finally
       {

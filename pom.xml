@@ -5,7 +5,7 @@
 
   <groupId>de.l9g</groupId>
   <artifactId>crypto-parent</artifactId>
-  <version>1.0.4</version>
+  <version>1.0.5</version>
   <packaging>pom</packaging>
 
   <name>L9G Crypto Parent Project</name>
@@ -54,9 +54,9 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.build.jdkVersion>17</project.build.jdkVersion>
     <maven.compiler.release>17</maven.compiler.release>
-    <lombok.version>1.18.44</lombok.version>
-    <spring.framework.version>6.2.17</spring.framework.version>
-    <spring.boot.version>3.5.13</spring.boot.version>
+    <lombok.version>1.18.46</lombok.version>
+    <spring.framework.version>6.2.18</spring.framework.version>
+    <spring.boot.version>3.5.14</spring.boot.version>
     <slf4j.version>2.0.17</slf4j.version>
     <jakarta.persistence.version>3.2.0</jakarta.persistence.version>
   </properties>
@@ -118,7 +118,7 @@
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>3.14.1</version>
+          <version>3.15.0</version>
           <configuration>
             <annotationProcessorPaths>
               <path>
@@ -136,7 +136,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-source-plugin</artifactId>
-        <version>3.2.1</version>
+        <version>3.4.0</version>
         <executions>
           <execution>
             <id>attach-sources</id>
@@ -149,7 +149,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
-        <version>3.3.1</version>
+        <version>3.12.0</version>
         <executions>
           <execution>
             <id>attach-javadocs</id>

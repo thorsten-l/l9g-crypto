@@ -102,9 +102,34 @@ class AES256Test {
   void testPayloadTooShort() throws NoSuchAlgorithmException {
     try (AES256 aes = new AES256()) {
       byte[] shortPayload = new byte[10]; // Minimum is 12 (IV) + 16 (Tag/Min)
-      IllegalStateException ex = assertThrows(IllegalStateException.class, () -> aes.decrypt(shortPayload));
-      assertTrue(ex.getCause() instanceof IllegalArgumentException);
+      CryptoException ex = assertThrows(CryptoException.class, () -> aes.decrypt(shortPayload));
+      assertInstanceOf(IllegalArgumentException.class, ex.getCause());
       assertEquals("Encrypted payload too short", ex.getCause().getMessage());
+      assertTrue(ex.getMessage().contains("Encrypted payload too short"), ex.getMessage());
+    }
+  }
+
+  @Test
+  @DisplayName("Should throw CryptoException with AEADBadTagException cause for tampered payload")
+  void testTamperedPayload() throws NoSuchAlgorithmException {
+    try (AES256 aes = new AES256()) {
+      byte[] encrypted = aes.encrypt("tamper me".getBytes());
+      encrypted[encrypted.length - 1] ^= 0x01; // flip a bit in the auth tag
+
+      CryptoException ex = assertThrows(CryptoException.class, () -> aes.decrypt(encrypted));
+      assertInstanceOf(javax.crypto.AEADBadTagException.class, ex.getCause());
+      // Still catchable as IllegalStateException for backward compatibility
+      assertInstanceOf(IllegalStateException.class, ex);
+    }
+  }
+
+  @Test
+  @DisplayName("Should throw CryptoException when decrypting with a different key")
+  void testWrongKey() throws NoSuchAlgorithmException {
+    try (AES256 aes1 = new AES256(); AES256 aes2 = new AES256()) {
+      String encrypted = aes1.encrypt("secret");
+      CryptoException ex = assertThrows(CryptoException.class, () -> aes2.decrypt(encrypted));
+      assertInstanceOf(javax.crypto.AEADBadTagException.class, ex.getCause());
     }
   }
 

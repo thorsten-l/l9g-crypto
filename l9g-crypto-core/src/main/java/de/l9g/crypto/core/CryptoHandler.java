@@ -29,6 +29,9 @@ import lombok.extern.slf4j.Slf4j;
  * This allows the {@link #decrypt(String)} method to differentiate between 
  * plain text and encrypted content, enabling transparent decryption (e.g., for 
  * configuration properties).
+ * <p>
+ * All failures are reported as {@link CryptoException}; nothing is logged at
+ * error level before throwing (see {@link CryptoException} for the rationale).
  *
  * @author Thorsten Ludewig (t.ludewig@gmail.com)
  */
@@ -39,6 +42,13 @@ public class CryptoHandler
    * The prefix used to identify and version AES-256 encrypted strings.
    */
   public final static String AES256_PREFIX = "{AES256}";
+
+  /**
+   * Lazily initialized singleton instance. A failed initialization is not
+   * cached, so every call to {@link #getInstance()} rethrows the real
+   * {@link CryptoException} instead of a {@code NoClassDefFoundError}.
+   */
+  private static volatile CryptoHandler instance;
 
   /**
    * The underlying AES-256 cipher instance.
@@ -69,24 +79,28 @@ public class CryptoHandler
 
   /**
    * Returns the thread-safe singleton instance of {@code CryptoHandler}.
-   * Uses the initialization-on-demand holder idiom.
+   * The instance is created on first access.
    *
    * @return The singleton instance.
+   *
+   * @throws CryptoException If the application secret key cannot be loaded or created.
    */
   public static CryptoHandler getInstance()
   {
-    return Holder.INSTANCE;
-  }
-
-  /**
-   * Inner static class to implement the initialization-on-demand holder idiom.
-   */
-  private static final class Holder
-  {
-    /**
-     * The singleton instance of {@code CryptoHandler}.
-     */
-    private static final CryptoHandler INSTANCE = new CryptoHandler();
+    CryptoHandler result = instance;
+    if(result == null)
+    {
+      synchronized(CryptoHandler.class)
+      {
+        result = instance;
+        if(result == null)
+        {
+          result = new CryptoHandler();
+          instance = result;
+        }
+      }
+    }
+    return result;
   }
 
   /**
@@ -96,7 +110,7 @@ public class CryptoHandler
    *
    * @return The encrypted string, encoded in Base64 and prefixed with {@code {AES256}}.
    *
-   * @throws IllegalStateException If encryption fails.
+   * @throws CryptoException If encryption fails.
    */
   public String encrypt(String text)
   {
@@ -113,7 +127,8 @@ public class CryptoHandler
    *
    * @return The decrypted plain text, or the original string if no prefix was found.
    *
-   * @throws IllegalStateException If decryption of a prefixed string fails.
+   * @throws CryptoException If decryption of a prefixed string fails (invalid Base64,
+   *                         wrong key, tampered payload, ...).
    */
   public String decrypt(String encryptedText)
   {
@@ -121,7 +136,15 @@ public class CryptoHandler
 
     if(encryptedText != null && encryptedText.startsWith(AES256_PREFIX))
     {
-      text = aes256.decrypt(encryptedText.substring(AES256_PREFIX.length()));
+      try
+      {
+        text = aes256.decrypt(encryptedText.substring(AES256_PREFIX.length()));
+      }
+      catch(IllegalArgumentException ex)
+      {
+        // Base64.getDecoder().decode(...) rejects malformed input
+        throw new CryptoException("Decryption failed: invalid Base64 payload", ex);
+      }
     }
     else
     {
@@ -138,7 +161,7 @@ public class CryptoHandler
    *
    * @return The encrypted byte array (containing IV, ciphertext, and tag).
    *
-   * @throws IllegalStateException If encryption fails.
+   * @throws CryptoException If encryption fails.
    */
   public byte[] encrypt(byte[] bytes)
   {
@@ -152,7 +175,7 @@ public class CryptoHandler
    *
    * @return The decrypted plain byte array.
    *
-   * @throws IllegalStateException If decryption fails.
+   * @throws CryptoException If decryption fails.
    */
   public byte[] decrypt(byte[] bytes)
   {

@@ -161,7 +161,8 @@ public class AES256 implements Destroyable, AutoCloseable
    *
    * @return The encrypted byte array containing IV + ciphertext + tag.
    *
-   * @throws IllegalStateException If encryption fails or the instance is destroyed.
+   * @throws CryptoException If encryption fails.
+   * @throws IllegalStateException If the instance is destroyed.
    */
   public byte[] encrypt(byte[] plainData)
   {
@@ -186,8 +187,7 @@ public class AES256 implements Destroyable, AutoCloseable
     }
     catch(Exception ex)
     {
-      log.error("Encryption failed", ex);
-      throw new IllegalStateException("Encryption failed", ex);
+      throw new CryptoException("Encryption failed: " + ex.getMessage(), ex);
     }
     finally
     {
@@ -204,8 +204,9 @@ public class AES256 implements Destroyable, AutoCloseable
    *
    * @return The decrypted plain byte array.
    *
-   * @throws IllegalArgumentException If the encrypted payload is too short.
-   * @throws IllegalStateException If decryption fails or the instance is destroyed.
+   * @throws CryptoException If decryption fails (payload too short, wrong key,
+   *                         tampered data, ...). The cause carries the underlying exception.
+   * @throws IllegalStateException If the instance is destroyed.
    */
   public byte[] decrypt(byte[] encryptedData)
   {
@@ -230,15 +231,10 @@ public class AES256 implements Destroyable, AutoCloseable
     }
     catch(Exception ex)
     {
-      if (ex instanceof IllegalArgumentException)
-      {
-        log.warn("Decryption failed (validation error): {}", ex.getMessage());
-      }
-      else
-      {
-        log.error("Decryption failed", ex);
-      }
-      throw new IllegalStateException("Decryption failed", ex);
+      // No logging here: the cause chain carries the full diagnosis
+      // (AEADBadTagException for wrong key / tampered data, IllegalArgumentException
+      // for structural errors) and the caller decides how to report it.
+      throw new CryptoException("Decryption failed: " + ex.getMessage(), ex);
     }
     finally
     {
@@ -255,7 +251,8 @@ public class AES256 implements Destroyable, AutoCloseable
    *
    * @return The Base64 encoded encrypted string.
    * 
-   * @throws IllegalStateException If encryption fails or the instance is destroyed.
+   * @throws CryptoException If encryption fails.
+   * @throws IllegalStateException If the instance is destroyed.
    */
   public String encrypt(String plainText)
   {
@@ -279,7 +276,8 @@ public class AES256 implements Destroyable, AutoCloseable
    *
    * @return The decrypted plain text string.
    *
-   * @throws IllegalStateException If decryption fails or the instance is destroyed.
+   * @throws CryptoException If decryption fails.
+   * @throws IllegalStateException If the instance is destroyed.
    */
   public String decrypt(String encryptedText)
   {

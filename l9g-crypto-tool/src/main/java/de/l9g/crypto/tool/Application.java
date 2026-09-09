@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 Thorsten Ludewig (t.ludewig@gmail.com).
+ * Copyright 2025 Thorsten Ludewig (t.ludewig@gmail.com).
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,17 +24,12 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Main entry point for the L9G Crypto Tool.
+ * Entry point of the L9G crypto command line tool.
  * <p>
- * This application is built on Spring Boot and Spring Shell to provide a 
- * convenient CLI interface for cryptographic operations. It supports two 
- * distinct operating modes:
- * <p>
- * 1. Interactive Mode: Activated by the {@code -i} or {@code --interactive} 
- *    parameters, providing a persistent shell environment.
- * <p>
- * 2. Non-Interactive Mode: Directly executes a single command passed via 
- *    command-line arguments.
+ * Root logging is switched off in {@code application.yaml} to keep the CLI
+ * output clean. Consequently Spring Boot's own failure report is invisible,
+ * so any startup or command failure is reported here by printing the complete
+ * cause chain to {@link System#err} and exiting with status 1.
  *
  * @author Thorsten Ludewig (t.ludewig@gmail.com)
  */
@@ -83,25 +78,60 @@ public class Application
 
     SpringApplicationBuilder builder = new SpringApplicationBuilder(Application.class);
 
-    if(interactiveModeRequested)
+    try
     {
-      builder.run(new String[0]);
-    }
-    else if(argsList.isEmpty())
-    {
-      builder.run(HELP);
-    }
-    else
-    {
-      try
+      if(interactiveModeRequested)
+      {
+        builder.run(new String[0]);
+      }
+      else if(argsList.isEmpty())
+      {
+        builder.run(HELP);
+      }
+      else
       {
         builder.run(argsList.toArray(new String[0]));
       }
-      catch(Throwable t)
+    }
+    catch(Throwable t)
+    {
+      printCauseChain(t);
+      System.exit(1);
+    }
+  }
+
+  /**
+   * Prints the given throwable and all of its causes to {@link System#err},
+   * root cause first, so that the actual reason (e.g. a missing or invalid
+   * secret key file) is the first thing the user reads.
+   *
+   * @param t The throwable to report.
+   */
+  static void printCauseChain(Throwable t)
+  {
+    List<Throwable> chain = new ArrayList<>();
+    for(Throwable c = t; c != null && ! chain.contains(c); c = c.getCause())
+    {
+      chain.add(c);
+    }
+
+    Throwable root = chain.get(chain.size() - 1);
+    System.err.println("Error: " + describe(root));
+
+    if(chain.size() > 1)
+    {
+      System.err.println("Context:");
+      for(int i = chain.size() - 2; i >= 0; i--)
       {
-        System.out.println(t.getMessage());
+        System.err.println("  " + describe(chain.get(i)));
       }
     }
+  }
+
+  private static String describe(Throwable t)
+  {
+    String message = t.getMessage();
+    return t.getClass().getSimpleName() + (message != null ? ": " + message : "");
   }
 
 }

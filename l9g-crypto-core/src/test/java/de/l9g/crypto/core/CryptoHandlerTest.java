@@ -75,4 +75,21 @@ class CryptoHandlerTest {
     assertNotNull(encrypted);
     assertArrayEquals(original, crypto.decrypt(encrypted));
   }
+
+  @Test
+  @DisplayName("Should throw CryptoException for invalid Base64 payload")
+  void testInvalidBase64() {
+    CryptoHandler crypto = CryptoHandler.getInstance();
+    CryptoException ex = assertThrows(CryptoException.class, () -> crypto.decrypt("{AES256}!!!"));
+    assertTrue(ex.getMessage().contains("invalid Base64"), ex.getMessage());
+    assertInstanceOf(IllegalArgumentException.class, ex.getCause());
+  }
+
+  @Test
+  @DisplayName("Should throw CryptoException for too short payload")
+  void testTooShortPayload() {
+    CryptoHandler crypto = CryptoHandler.getInstance();
+    CryptoException ex = assertThrows(CryptoException.class, () -> crypto.decrypt("{AES256}AAAA"));
+    assertTrue(ex.getMessage().contains("Encrypted payload too short"), ex.getMessage());
+  }
 }

@@ -15,13 +15,16 @@
  */
 package de.l9g.crypto.spring;
 
+import de.l9g.crypto.core.CryptoException;
 import de.l9g.crypto.core.CryptoHandler;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import org.apache.commons.logging.Log;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.env.EnvironmentPostProcessor;
+import org.springframework.boot.logging.DeferredLogFactory;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.MapPropertySource;
@@ -39,17 +42,39 @@ import org.springframework.core.env.PropertySource;
  * which is added to the beginning of the environment's property sources. 
  * This ensures that decrypted values take precedence over their encrypted 
  * counterparts, making the decryption transparent to the application.
+ * <p>
+ * Environment post-processors run before Spring Boot's logging system is
+ * initialized, so this class logs through a {@link DeferredLogFactory}; the
+ * messages are replayed once logging is available. The {@link CryptoHandler}
+ * (and therefore the secret key file) is only touched when at least one
+ * encrypted value is present. Failures are reported as {@link CryptoException}
+ * naming the affected property key and property source (never the value) and
+ * are rendered by {@link CryptoFailureAnalyzer}.
  *
  * @author Thorsten Ludewig (t.ludewig@gmail.com)
  */
 public class EncryptedPropertiesEnvironmentPostProcessor implements
   EnvironmentPostProcessor
 {
+  /**
+   * Name of the property source holding the decrypted values.
+   */
+  static final String DECRYPTED_PROPERTY_SOURCE_NAME = "decryptedProperties";
 
   /**
-   * The crypto handler used for decrypting property values.
+   * Deferred logger, replayed after the logging system has been initialized.
    */
-  private final CryptoHandler cryptoHandler = CryptoHandler.getInstance();
+  private final Log log;
+
+  /**
+   * Creates the post-processor. Spring Boot injects the {@link DeferredLogFactory}.
+   *
+   * @param logFactory Factory for deferred logs.
+   */
+  public EncryptedPropertiesEnvironmentPostProcessor(DeferredLogFactory logFactory)
+  {
+    this.log = logFactory.getLog(getClass());
+  }
 
   /**
    * Post-processes the Spring environment to decrypt properties.
@@ -60,12 +85,15 @@ public class EncryptedPropertiesEnvironmentPostProcessor implements
    *
    * @param environment The configurable environment to process.
    * @param application The Spring application instance.
+   *
+   * @throws CryptoException If the secret key is unavailable or a property cannot be decrypted.
    */
   @Override
   public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application)
   {
     Map<String, Object> decryptedProperties = new HashMap<>();
     Set<String> keys = new HashSet<>();
+    CryptoHandler cryptoHandler = null;
 
     for(PropertySource<?> propertySource : environment.getPropertySources())
     {
@@ -82,8 +110,12 @@ public class EncryptedPropertiesEnvironmentPostProcessor implements
               String stringValue = (String)value;
               if(stringValue.startsWith(CryptoHandler.AES256_PREFIX))
               {
-                String decryptedValue = cryptoHandler.decrypt(stringValue);
-                decryptedProperties.put(key, decryptedValue);
+                if(cryptoHandler == null)
+                {
+                  cryptoHandler = CryptoHandler.getInstance();
+                }
+                decryptedProperties.put(key,
+                  decrypt(cryptoHandler, key, propertySource.getName(), stringValue));
               }
             }
           }
@@ -93,9 +125,29 @@ public class EncryptedPropertiesEnvironmentPostProcessor implements
 
     if( ! decryptedProperties.isEmpty())
     {
+      log.debug("Decrypted " + decryptedProperties.size() + " encrypted propertie(s): "
+        + decryptedProperties.keySet());
       environment.getPropertySources().addFirst(
-        new MapPropertySource("decryptedProperties", decryptedProperties)
+        new MapPropertySource(DECRYPTED_PROPERTY_SOURCE_NAME, decryptedProperties)
       );
+    }
+  }
+
+  /**
+   * Decrypts a single property value, translating failures into a
+   * {@link CryptoException} that names the property but never its value.
+   */
+  private static String decrypt(CryptoHandler cryptoHandler, String key,
+    String propertySourceName, String encryptedValue)
+  {
+    try
+    {
+      return cryptoHandler.decrypt(encryptedValue);
+    }
+    catch(RuntimeException ex)
+    {
+      throw new CryptoException("Could not decrypt property '" + key
+        + "' from property source '" + propertySourceName + "'", ex);
     }
   }
 

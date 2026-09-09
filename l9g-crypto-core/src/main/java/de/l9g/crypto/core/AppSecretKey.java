@@ -40,6 +40,13 @@ import lombok.extern.slf4j.Slf4j;
  * On systems supporting POSIX file attributes, strict file permissions (read-only for the owner)
  * are applied to the secret file.
  * </p>
+ * <p>
+ * If the key cannot be loaded or created, a {@link CryptoException} is thrown from
+ * {@link #getInstance()}. Because this is a fatal condition that frequently occurs
+ * before the application's logging is initialized (e.g. during Spring Boot's
+ * environment post-processing), a single diagnostic line is additionally written
+ * to {@link System#err}. No key material is ever written there.
+ * </p>
  *
  * @author Thorsten Ludewig (t.ludewig@gmail.com)
  */
@@ -49,17 +56,30 @@ public class AppSecretKey implements Destroyable, AutoCloseable
   /**
    * Environment variable name for overriding the default secret key file path.
    */
-  private static final String SECRET_PATH_ENV_NAME = "SECRET_PATH";
+  public static final String SECRET_PATH_ENV_NAME = "SECRET_PATH";
 
   /**
    * The default path to the file where the secret key is stored.
    */
-  private static final Path DEFAULT_SECRET_PATH = Path.of("data/secret.bin");
+  public static final Path DEFAULT_SECRET_PATH = Path.of("data/secret.bin");
+
+  /**
+   * Prefix of the single fallback line written to {@link System#err} on fatal errors.
+   */
+  static final String FATAL_PREFIX = "[l9g-crypto] FATAL: ";
 
   /**
    * The expected length of the secret key in bytes (32 bytes for AES-256).
    */
   private static final int KEY_LEN = AES256.KEY_LEN_BYTES; // 32
+
+  /**
+   * Lazily initialized singleton instance. Unlike the initialization-on-demand
+   * holder idiom, a failed initialization is not cached: every subsequent call
+   * to {@link #getInstance()} retries and rethrows the real {@link CryptoException}
+   * instead of a {@code NoClassDefFoundError}.
+   */
+  private static volatile AppSecretKey instance;
 
   /**
    * Private constructor to initialize AppSecretKey with a given secret key.
@@ -74,104 +94,157 @@ public class AppSecretKey implements Destroyable, AutoCloseable
 
   /**
    * Returns the singleton instance of {@code AppSecretKey}.
-   * This method ensures that the secret key is loaded or generated only once
-   * using the initialization-on-demand holder idiom.
+   * The secret key is loaded or generated on first access.
    *
    * @return The singleton instance of {@code AppSecretKey}.
+   *
+   * @throws CryptoException If the secret file cannot be read, created or has an invalid length.
    */
   public static AppSecretKey getInstance()
   {
-    return Holder.INSTANCE;
+    AppSecretKey result = instance;
+    if(result == null)
+    {
+      synchronized(AppSecretKey.class)
+      {
+        result = instance;
+        if(result == null)
+        {
+          result = loadOrCreate(resolveSecretPath());
+          instance = result;
+        }
+      }
+    }
+    return result;
   }
 
   /**
-   * Inner static class to implement the initialization-on-demand holder idiom
-   * for the {@code AppSecretKey} singleton.
-   */
-  private static final class Holder
-  {
-    /**
-     * The singleton instance of {@code AppSecretKey}, initialized upon first access.
-     */
-    private static final AppSecretKey INSTANCE = loadOrCreate();
-
-  }
-
-  /**
-   * Loads the secret key from a file or generates a new one if it doesn't exist.
-   * <p>
-   * If a new key is generated, it is written to the configured path with restricted
-   * file permissions to ensure security.
-   * </p>
+   * Determines the secret file path from the {@code SECRET_PATH} environment
+   * variable, falling back to {@link #DEFAULT_SECRET_PATH}.
    *
-   * @return An instance of {@code AppSecretKey} with the loaded or newly generated key.
-   *
-   * @throws RuntimeException If the secret file cannot be read, created, or written.
+   * @return The path of the secret key file.
    */
-  private static AppSecretKey loadOrCreate()
+  public static Path resolveSecretPath()
   {
-    Path secretPath = DEFAULT_SECRET_PATH;
-
     String secretPathEnv = System.getenv(SECRET_PATH_ENV_NAME);
     if(secretPathEnv != null &&  ! secretPathEnv.isBlank())
     {
-      secretPath = Path.of(secretPathEnv);
+      return Path.of(secretPathEnv);
     }
+    return DEFAULT_SECRET_PATH;
+  }
 
-    try
+  /**
+   * Loads the secret key from the given file or generates a new one if it doesn't exist.
+   * <p>
+   * If a new key is generated, it is written to the given path with restricted
+   * file permissions to ensure security.
+   * </p>
+   *
+   * @param secretPath The path of the secret key file.
+   *
+   * @return An instance of {@code AppSecretKey} with the loaded or newly generated key.
+   *
+   * @throws CryptoException If the secret file cannot be read, created or has an invalid length.
+   */
+  static AppSecretKey loadOrCreate(Path secretPath)
+  {
+    byte[] secretKey;
+
+    if(Files.exists(secretPath))
     {
-      if(secretPath.getParent() != null)
-      {
-        Files.createDirectories(secretPath.getParent());
-      }
-
-      byte[] secretKey;
-
-      if(Files.exists(secretPath))
+      log.debug("Loading secret file: {}", secretPath);
+      try
       {
         secretKey = Files.readAllBytes(secretPath);
-        log.debug("Loading secret file: {}", secretPath);
-
-        if(secretKey.length != KEY_LEN)
-        {
-          throw new RuntimeException("Invalid secret key length: "
-            + secretKey.length);
-        }
       }
-      else
+      catch(IOException e)
       {
-        secretKey = new byte[KEY_LEN];
-        new SecureRandom().nextBytes(secretKey);
-        log.info("Generating and writing new secret file: {}", secretPath);
-
-        // Set POSIX permissions atomically if supported
-        if(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"))
-        {
-          Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rw-------");
-          FileAttribute<Set<PosixFilePermission>> attr = PosixFilePermissions.asFileAttribute(perms);
-          Files.createFile(secretPath, attr);
-          Files.write(secretPath, secretKey, StandardOpenOption.WRITE);
-          Files.setPosixFilePermissions(secretPath, PosixFilePermissions.fromString("r--------"));
-        }
-        else
-        {
-          // Fallback for non-POSIX (Windows): Write first, then restrict
-          Files.write(secretPath, secretKey, StandardOpenOption.CREATE_NEW);
-          File secretFile = secretPath.toFile();
-          secretFile.setExecutable(false, false);
-          secretFile.setWritable(false, false);
-          secretFile.setReadable(false, false);
-          secretFile.setReadable(true, true);
-        }
+        throw fatal("Could not read secret key file '" + secretPath + "'", e);
       }
 
-      return new AppSecretKey(secretKey);
+      if(secretKey.length != KEY_LEN)
+      {
+        AES256.wipe(secretKey);
+        throw fatal("Invalid secret key length in '" + secretPath + "': "
+          + secretKey.length + " bytes, expected " + KEY_LEN, null);
+      }
     }
-    catch(IOException e)
+    else
     {
-      log.error("CRITICAL ERROR: Could not manage secret file at {}", secretPath, e);
-      throw new RuntimeException("Application cannot start without secret key: " + secretPath, e);
+      log.info("Generating and writing new secret file: {}", secretPath);
+      secretKey = new byte[KEY_LEN];
+      new SecureRandom().nextBytes(secretKey);
+
+      try
+      {
+        writeSecretFile(secretPath, secretKey);
+      }
+      catch(IOException e)
+      {
+        AES256.wipe(secretKey);
+        throw fatal("Could not create secret key file '" + secretPath + "'", e);
+      }
     }
+
+    return new AppSecretKey(secretKey);
+  }
+
+  /**
+   * Writes a freshly generated key to disk, creating parent directories as
+   * needed and restricting permissions to the owner.
+   *
+   * @param secretPath The target file.
+   * @param secretKey The key bytes to write.
+   *
+   * @throws IOException If any file system operation fails.
+   */
+  private static void writeSecretFile(Path secretPath, byte[] secretKey)
+    throws IOException
+  {
+    if(secretPath.getParent() != null)
+    {
+      Files.createDirectories(secretPath.getParent());
+    }
+
+    // Set POSIX permissions atomically if supported
+    if(FileSystems.getDefault().supportedFileAttributeViews().contains("posix"))
+    {
+      Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rw-------");
+      FileAttribute<Set<PosixFilePermission>> attr = PosixFilePermissions.asFileAttribute(perms);
+      Files.createFile(secretPath, attr);
+      Files.write(secretPath, secretKey, StandardOpenOption.WRITE);
+      Files.setPosixFilePermissions(secretPath, PosixFilePermissions.fromString("r--------"));
+    }
+    else
+    {
+      // Fallback for non-POSIX (Windows): Write first, then restrict
+      Files.write(secretPath, secretKey, StandardOpenOption.CREATE_NEW);
+      File secretFile = secretPath.toFile();
+      secretFile.setExecutable(false, false);
+      secretFile.setWritable(false, false);
+      secretFile.setReadable(false, false);
+      secretFile.setReadable(true, true);
+    }
+  }
+
+  /**
+   * Builds the {@link CryptoException} for a fatal key initialization failure
+   * and writes a single fallback line to {@link System#err}.
+   * <p>
+   * This is the only place in the library that bypasses SLF4J. It exists because
+   * key initialization typically happens at application startup, possibly before
+   * any logging backend is configured, and the failure must never go unnoticed.
+   *
+   * @param message Human readable description including the file path.
+   * @param cause Underlying cause, may be {@code null}.
+   *
+   * @return The exception to be thrown by the caller.
+   */
+  private static CryptoException fatal(String message, Throwable cause)
+  {
+    System.err.println(FATAL_PREFIX + message + (cause != null ? " (" + cause + ")" : ""));
+    return cause != null ? new CryptoException(message, cause) : new CryptoException(message);
   }
 
   /**

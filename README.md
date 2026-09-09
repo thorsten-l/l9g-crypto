@@ -26,7 +26,7 @@ mvn clean install -pl l9g-crypto-core
 <dependency>
   <groupId>de.l9g</groupId>
   <artifactId>crypto-core</artifactId>
-  <version>1.0.4</version>
+  <version>1.0.6</version>
 </dependency>
 ```
 
@@ -47,8 +47,36 @@ mvn clean install -pl l9g-crypto-spring
 <dependency>
   <groupId>de.l9g</groupId>
   <artifactId>crypto-spring</artifactId>
-  <version>1.0.4</version>
+  <version>1.0.6</version>
 </dependency>
+```
+
+The secret key file is only accessed when at least one `{AES256}` value is present in the
+environment. Applications without encrypted properties start without a key file.
+
+#### Startup Failures
+The environment post-processor runs before Spring Boot initializes its logging system, so
+regular log statements from that phase are discarded. Failures are therefore reported as
+`de.l9g.crypto.core.CryptoException` naming the property key and property source (never the
+value) and rendered by the bundled `CryptoFailureAnalyzer` in Spring Boot's
+"APPLICATION FAILED TO START" report, for example:
+
+```
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Could not decrypt property 'spring.datasource.password' from property source 'Config resource ...'
+  caused by: CryptoException: Decryption failed: Tag mismatch
+  caused by: AEADBadTagException: Tag mismatch
+
+Action:
+
+Check the AES-256 secret key file 'data/secret.bin' (override the location with the SECRET_PATH
+environment variable). The file must be readable and exactly 32 bytes long, and every {AES256}
+value must have been encrypted with this key (e.g. using 'crypto-tool encrypt --text ...').
 ```
 
 ---
@@ -70,7 +98,7 @@ private String sensitiveData;
 <dependency>
   <groupId>de.l9g</groupId>
   <artifactId>crypto-jpa</artifactId>
-  <version>1.0.4</version>
+  <version>1.0.6</version>
 </dependency>
 ```
 
@@ -118,9 +146,30 @@ To build all modules from the root directory:
 mvn clean install
 ```
 
+## Error Handling
+
+All failures in `l9g-crypto-core` are thrown as `de.l9g.crypto.core.CryptoException`
+(a subclass of `IllegalStateException`, so existing `catch` blocks keep working). The message
+and the cause chain carry the full diagnosis: file path, expected key length, the underlying
+JCE exception, and so on.
+
+The core library deliberately does **not** log at error level before throwing. Such
+"log-and-throw" messages were silently lost when the failure occurred before the application's
+logging backend was ready (Spring Boot suppresses Logback and bridged `java.util.logging`
+output until its `LoggingApplicationListener` has run). Callers are responsible for reporting
+the exception.
+
+There is one exception to this rule: if the secret key file cannot be read or created, or has
+the wrong length, `AppSecretKey` writes a single line prefixed with `[l9g-crypto] FATAL:` to
+`System.err` in addition to throwing. This line never contains key material.
+
+The `crypto-tool` CLI prints the complete cause chain of any failure to `stderr` and exits
+with status 1.
+
 ## Development Conventions
 
 *   **Language:** Java 17
 *   **Encryption:** AES-256 GCM (Authenticated Encryption)
 *   **Hygiene:** Explicit memory wiping of sensitive key material.
+*   **Errors:** `CryptoException` with a complete cause chain; no log-and-throw in the core library.
 *   **Frameworks:** Spring Boot 3.5+, Jakarta Persistence 3.2+

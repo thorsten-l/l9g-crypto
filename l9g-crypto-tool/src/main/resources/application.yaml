@@ -36,4 +36,4 @@ logging:
     console: "%date{yyyy-MM-dd HH:mm:ss} %magenta([%thread]) %highlight(%-5level) %logger:%line - %yellow(%msg %n)"
   level:
     root: OFF
-    l9g: INFO
+    de.l9g.crypto.core: INFO

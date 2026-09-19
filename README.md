@@ -13,8 +13,25 @@ This module, `l9g-crypto-core`, is a Java library designed to provide AES-256 en
 
 #### Key Features
 *   **Singleton Pattern:** `CryptoHandler` acts as a centralized entry point.
-*   **Key Management:** `AppSecretKey` manages the master secret, supporting environment overrides and secure memory wiping.
+*   **Key Management:** `AppSecretKey` manages the master secret, supporting file and classpath locations, environment and system property overrides, and secure memory wiping.
 *   **Password Generator:** Includes a cryptographically secure random password generator that avoids ambiguous characters.
+
+#### Secret Key Location
+The 32-byte AES-256 key is resolved in this order:
+
+1. Environment variable `SECRET_PATH`
+2. System property `secret.path` (fallback for programs that cannot set an environment variable, e.g. a desktop application started by double-click)
+3. Default `data/secret.bin` relative to the working directory
+
+A value prefixed with `classpath:` is read as a **classpath resource** instead of a file, so the key can ship inside a jar or a GraalVM native image:
+
+```bash
+SECRET_PATH=classpath:assets/secret.bin java -jar my-app.jar
+# or
+java -Dsecret.path=classpath:assets/secret.bin -jar my-app.jar
+```
+
+A missing **file** is generated automatically (owner read-only). A missing **classpath resource** is never generated; it fails with a `CryptoException`, because nothing can be written into a jar and a silently generated key would only surface later as a `Tag mismatch`.
 
 #### Building
 ```bash
@@ -26,7 +43,7 @@ mvn clean install -pl l9g-crypto-core
 <dependency>
   <groupId>de.l9g</groupId>
   <artifactId>crypto-core</artifactId>
-  <version>1.0.6</version>
+  <version>1.0.7</version>
 </dependency>
 ```
 
@@ -47,7 +64,7 @@ mvn clean install -pl l9g-crypto-spring
 <dependency>
   <groupId>de.l9g</groupId>
   <artifactId>crypto-spring</artifactId>
-  <version>1.0.6</version>
+  <version>1.0.7</version>
 </dependency>
 ```
 
@@ -98,7 +115,7 @@ private String sensitiveData;
 <dependency>
   <groupId>de.l9g</groupId>
   <artifactId>crypto-jpa</artifactId>
-  <version>1.0.6</version>
+  <version>1.0.7</version>
 </dependency>
 ```
 
@@ -159,9 +176,10 @@ logging backend was ready (Spring Boot suppresses Logback and bridged `java.util
 output until its `LoggingApplicationListener` has run). Callers are responsible for reporting
 the exception.
 
-There is one exception to this rule: if the secret key file cannot be read or created, or has
-the wrong length, `AppSecretKey` writes a single line prefixed with `[l9g-crypto] FATAL:` to
-`System.err` in addition to throwing. This line never contains key material.
+There is one exception to this rule: if the secret key cannot be read or created, is missing
+on the classpath, or has the wrong length, `AppSecretKey` writes a single line prefixed with
+`[l9g-crypto] FATAL:` to `System.err` in addition to throwing. This line never contains key
+material.
 
 The `crypto-tool` CLI prints the complete cause chain of any failure to `stderr` and exits
 with status 1.
@@ -172,4 +190,6 @@ with status 1.
 *   **Encryption:** AES-256 GCM (Authenticated Encryption)
 *   **Hygiene:** Explicit memory wiping of sensitive key material.
 *   **Errors:** `CryptoException` with a complete cause chain; no log-and-throw in the core library.
+*   **Testing:** JUnit 6 (Jupiter); test dependencies are managed in the parent POM.
 *   **Frameworks:** Spring Boot 3.5+, Jakarta Persistence 3.2+
+*   **History:** see [CHANGELOG.md](CHANGELOG.md)

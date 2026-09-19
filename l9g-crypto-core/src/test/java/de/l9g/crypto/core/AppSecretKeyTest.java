@@ -168,4 +168,90 @@ class AppSecretKeyTest {
     }
     return buffer.toString(StandardCharsets.UTF_8);
   }
+
+  @Test
+  @DisplayName("Should load a key from a classpath resource")
+  void testLoadFromClasspath()
+  {
+    AppSecretKey key = AppSecretKey.loadFromClasspath("test-secret.bin");
+    assertArrayEquals(
+      new byte[]
+      {
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+        16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31
+      },
+      key.getSecretKey());
+  }
+
+  @Test
+  @DisplayName("Should fail instead of generating when the resource is missing")
+  void testMissingClasspathResource()
+  {
+    // A classpath resource cannot be written to, so a missing one must be an
+    // error - generating a fresh key here would only produce a later, far more
+    // confusing "Tag mismatch" on the first decryption.
+    CryptoException e = assertThrows(CryptoException.class,
+      () -> AppSecretKey.loadFromClasspath("does/not/exist.bin"));
+    assertTrue(e.getMessage().contains("not found on classpath"));
+  }
+
+  @Test
+  @DisplayName("Should reject a classpath key of wrong length")
+  void testClasspathResourceWrongLength()
+  {
+    CryptoException e = assertThrows(CryptoException.class,
+      () -> AppSecretKey.loadFromClasspath("test-secret-short.bin"));
+    assertTrue(e.getMessage().contains("Invalid secret key length"));
+  }
+
+  @Test
+  @DisplayName("Should strip the classpath prefix and leading slashes")
+  void testResolveClasspathResource()
+  {
+    // The environment variable cannot be set from within the JVM; the system
+    // property can, which is what makes these paths testable at all.
+    try
+    {
+      System.setProperty(AppSecretKey.SECRET_PATH_PROPERTY_NAME,
+        "classpath:/assets/secret.bin");
+      assertEquals("assets/secret.bin", AppSecretKey.resolveClasspathResource());
+      // A classpath location must not leak into the file path resolver.
+      assertEquals(AppSecretKey.DEFAULT_SECRET_PATH, AppSecretKey.resolveSecretPath());
+
+      System.setProperty(AppSecretKey.SECRET_PATH_PROPERTY_NAME, "keys/app.bin");
+      assertNull(AppSecretKey.resolveClasspathResource());
+      assertEquals(Path.of("keys/app.bin"), AppSecretKey.resolveSecretPath());
+    }
+    finally
+    {
+      System.clearProperty(AppSecretKey.SECRET_PATH_PROPERTY_NAME);
+    }
+
+    assertNull(AppSecretKey.resolveClasspathResource());
+    assertEquals(AppSecretKey.DEFAULT_SECRET_PATH, AppSecretKey.resolveSecretPath());
+  }
+
+  @Test
+  @DisplayName("Should prefer the environment variable over the system property")
+  void testEnvironmentWinsOverProperty()
+  {
+    try
+    {
+      System.setProperty(AppSecretKey.SECRET_PATH_PROPERTY_NAME, "from/property.bin");
+      String env = System.getenv(AppSecretKey.SECRET_PATH_ENV_NAME);
+      if(env == null || env.isBlank())
+      {
+        // No variable in this environment: the property must take effect.
+        assertEquals("from/property.bin", AppSecretKey.configuredLocation());
+      }
+      else
+      {
+        assertEquals(env.trim(), AppSecretKey.configuredLocation());
+      }
+    }
+    finally
+    {
+      System.clearProperty(AppSecretKey.SECRET_PATH_PROPERTY_NAME);
+    }
+  }
 }

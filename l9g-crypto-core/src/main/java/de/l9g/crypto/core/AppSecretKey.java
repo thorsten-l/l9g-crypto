@@ -36,9 +36,18 @@ import lombok.extern.slf4j.Slf4j;
  * for cryptographic operations, primarily for AES-256 encryption.
  * <p>
  * The secret key is stored in a binary file. The path to this file can be configured via the
- * {@code SECRET_PATH} environment variable. If not provided, it defaults to {@code data/secret.bin}.
+ * {@code SECRET_PATH} environment variable or, if that is unset, the {@code secret.path}
+ * system property. If neither is provided, it defaults to {@code data/secret.bin}.
  * On systems supporting POSIX file attributes, strict file permissions (read-only for the owner)
  * are applied to the secret file.
+ * </p>
+ * <p>
+ * {@code SECRET_PATH} may instead reference a classpath resource by using the
+ * {@code classpath:} prefix, e.g. {@code classpath:assets/secret.bin}. This allows the key
+ * to ship inside a jar or a GraalVM native image. A classpath resource is read-only: if it
+ * cannot be found, a {@link CryptoException} is thrown rather than generating a new key,
+ * because there is nowhere to write it. Automatic generation therefore remains reserved for
+ * file system paths.
  * </p>
  * <p>
  * If the key cannot be loaded or created, a {@link CryptoException} is thrown from
@@ -57,6 +66,23 @@ public class AppSecretKey implements Destroyable, AutoCloseable
    * Environment variable name for overriding the default secret key file path.
    */
   public static final String SECRET_PATH_ENV_NAME = "SECRET_PATH";
+
+  /**
+   * System property consulted when {@link #SECRET_PATH_ENV_NAME} is not set.
+   * <p>
+   * Intended for applications that ship their own key and have no opportunity to
+   * set an environment variable - a desktop program started by double click, for
+   * instance. Such an application sets this property before the first key access;
+   * the environment variable keeps precedence so that an operator can still
+   * redirect the key without touching the application.
+   * </p>
+   */
+  public static final String SECRET_PATH_PROPERTY_NAME = "secret.path";
+
+  /**
+   * Prefix marking a {@code SECRET_PATH} value as a classpath resource instead of a file.
+   */
+  public static final String CLASSPATH_PREFIX = "classpath:";
 
   /**
    * The default path to the file where the secret key is stored.
@@ -110,7 +136,10 @@ public class AppSecretKey implements Destroyable, AutoCloseable
         result = instance;
         if(result == null)
         {
-          result = loadOrCreate(resolveSecretPath());
+          String classpathResource = resolveClasspathResource();
+          result = classpathResource != null
+            ? loadFromClasspath(classpathResource)
+            : loadOrCreate(resolveSecretPath());
           instance = result;
         }
       }
@@ -119,19 +148,132 @@ public class AppSecretKey implements Destroyable, AutoCloseable
   }
 
   /**
-   * Determines the secret file path from the {@code SECRET_PATH} environment
-   * variable, falling back to {@link #DEFAULT_SECRET_PATH}.
+   * Returns the configured secret location: the {@code SECRET_PATH} environment
+   * variable if set, otherwise the {@code secret.path} system property, otherwise
+   * {@code null}.
+   * <p>
+   * The environment variable deliberately wins: an application may set the system
+   * property to point at its own bundled key, and an operator must still be able to
+   * override that from outside.
+   * </p>
+   *
+   * @return The configured location, or {@code null} if neither is set.
+   */
+  static String configuredLocation()
+  {
+    String value = System.getenv(SECRET_PATH_ENV_NAME);
+    if(value == null || value.isBlank())
+    {
+      value = System.getProperty(SECRET_PATH_PROPERTY_NAME);
+    }
+    return (value == null || value.isBlank()) ? null : value.trim();
+  }
+
+  /**
+   * Determines the secret file path from {@link #configuredLocation()},
+   * falling back to {@link #DEFAULT_SECRET_PATH}.
+   * <p>
+   * Only meaningful for file system locations. When the configured value names a
+   * classpath resource, use {@link #resolveClasspathResource()} instead - the value
+   * would otherwise be mistaken for a relative file name.
+   * </p>
    *
    * @return The path of the secret key file.
    */
   public static Path resolveSecretPath()
   {
-    String secretPathEnv = System.getenv(SECRET_PATH_ENV_NAME);
-    if(secretPathEnv != null &&  ! secretPathEnv.isBlank())
+    String location = configuredLocation();
+    if(location != null &&  ! location.startsWith(CLASSPATH_PREFIX))
     {
-      return Path.of(secretPathEnv);
+      return Path.of(location);
     }
     return DEFAULT_SECRET_PATH;
+  }
+
+  /**
+   * Returns the classpath resource named by {@link #configuredLocation()}, or
+   * {@code null} if nothing is configured or it points at the file system.
+   *
+   * @return The resource name without the {@code classpath:} prefix and without a
+   *         leading slash, or {@code null}.
+   */
+  public static String resolveClasspathResource()
+  {
+    String location = configuredLocation();
+    if(location == null || ! location.startsWith(CLASSPATH_PREFIX))
+    {
+      return null;
+    }
+
+    String resource = location.substring(CLASSPATH_PREFIX.length()).trim();
+    while(resource.startsWith("/"))
+    {
+      resource = resource.substring(1);
+    }
+    return resource.isEmpty() ? null : resource;
+  }
+
+  /**
+   * Loads the secret key from a classpath resource.
+   * <p>
+   * Unlike {@link #loadOrCreate(Path)} this never generates a key: a classpath
+   * resource lives inside a jar or native image and cannot be written to. A missing
+   * resource is a configuration error and is reported as such, instead of silently
+   * producing a key that cannot decrypt any existing value.
+   * </p>
+   *
+   * @param resource The resource name, e.g. {@code assets/secret.bin}.
+   *
+   * @return An instance holding the key from the classpath.
+   *
+   * @throws CryptoException If the resource is missing, unreadable or has an invalid length.
+   */
+  static AppSecretKey loadFromClasspath(String resource)
+  {
+    log.debug("Loading secret from classpath resource: {}", resource);
+
+    // Context class loader first (Spring, servlet containers, tests), then our own.
+    ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+    byte[] secretKey = null;
+
+    for(ClassLoader loader : new ClassLoader[]
+    {
+      contextLoader, AppSecretKey.class.getClassLoader()
+    })
+    {
+      if(loader == null)
+      {
+        continue;
+      }
+      try(var in = loader.getResourceAsStream(resource))
+      {
+        if(in != null)
+        {
+          secretKey = in.readAllBytes();
+          break;
+        }
+      }
+      catch(IOException e)
+      {
+        throw fatal("Could not read secret key resource '"
+          + CLASSPATH_PREFIX + resource + "'", e);
+      }
+    }
+
+    if(secretKey == null)
+    {
+      throw fatal("Secret key resource not found on classpath: '"
+        + CLASSPATH_PREFIX + resource + "'", null);
+    }
+
+    if(secretKey.length != KEY_LEN)
+    {
+      AES256.wipe(secretKey);
+      throw fatal("Invalid secret key length in '" + CLASSPATH_PREFIX + resource
+        + "': " + secretKey.length + " bytes, expected " + KEY_LEN, null);
+    }
+
+    return new AppSecretKey(secretKey);
   }
 
   /**
